@@ -20,7 +20,7 @@ class MDPSolver(ABC):
         """Constructor of MDPSolver
 
         Initialises some variables from the MDP, namely the state and action dimension variables
-
+        
         :param mdp (MDP): MDP to solve
         :param gamma (float): discount factor (gamma)
         """
@@ -33,7 +33,7 @@ class MDPSolver(ABC):
     def decode_policy(self, policy: Dict[int, np.ndarray]) -> Dict[State, Action]:
         """Generates greedy, deterministic policy dict
 
-        Given a stochastic policy from state indeces to distribution over actions, the greedy,
+        Given a stochastic policy from state indices to distribution over actions, the greedy,
         deterministic policy is generated choosing the action with highest probability
 
         :param policy (Dict[int, np.ndarray of float with dim (num of actions)]):
@@ -56,15 +56,30 @@ class ValueIteration(MDPSolver):
     """MDP solver using the Value Iteration algorithm
     """
 
+    def _one_step_lookahead(self, state: int, V: np.ndarray) -> np.ndarray:
+        """
+            Calculates the values associated with a one step lookahead
+            from a specified state.
+
+            :param state (int): integer reprenting the current state of the MDP.
+            :param: V (np.ndarray): array of current state values.
+            :return action_values (np.ndarray): array of values associated with
+                                                states that can be reached via 
+                                                one step lookahead.
+        """
+        action_values = np.zeros(self.action_dim)
+        # Consider every possible state action pair from state s
+        for action in range(self.action_dim):
+            for next_state in range(self.state_dim):
+                # Update values given by Bellman equation
+                action_values[action] += self.mdp.P[state, action, next_state] * \
+                                    (self.mdp.R[state, action, next_state] + self.gamma * V[next_state])
+        return action_values
+
     def _calc_value_func(self, theta: float) -> np.ndarray:
         """Calculates the value function
-
-        **YOU MUST IMPLEMENT THIS FUNCTION FOR Q1**
-
-        **DO NOT ALTER THE MDP HERE**
-
         Useful Variables:
-        1. `self.mpd` -- Gives access to the MDP.
+        1. `self.mdp` -- Gives access to the MDP.
         2. `self.mdp.R` -- 3D NumPy array with the rewards for each transition.
             E.g. the reward of transition [3] -2-> [4] (going from state 3 to state 4 with action
             2) can be accessed with `self.R[3, 2, 4]`
@@ -78,15 +93,26 @@ class ValueIteration(MDPSolver):
             1D NumPy array with the values of each state.
             E.g. V[3] returns the computed value for state 3
         """
+        # Initialize value function as 0 everywhere
         V = np.zeros(self.state_dim)
-        ### PUT YOUR CODE HERE ###
-        raise NotImplementedError("Needed for Q1")
+        done = False 
+        while not done:
+            delta = 0
+            # Update each state
+            for state in range(self.state_dim):
+                # Store old state value
+                v = V[state]
+                # Greedy update of state values via one step lookahead
+                action_values = self._one_step_lookahead(state, V)
+                V[state] = np.max(action_values)
+                delta = np.maximum(delta, np.abs(v - V[state]))
+            # Convergence check
+            if delta < theta:
+                done = True
         return V
 
     def _calc_policy(self, V: np.ndarray) -> np.ndarray:
         """Calculates the policy
-
-        **YOU MUST IMPLEMENT THIS FUNCTION FOR Q1**
 
         :param V (np.ndarray of float with dim (num of states)):
             A 1D NumPy array that encodes the computed value function (from _calc_value_func(...))
@@ -101,8 +127,11 @@ class ValueIteration(MDPSolver):
             policy[S, OTHER_ACTIONS] = 0
         """
         policy = np.zeros([self.state_dim, self.action_dim])
-        ### PUT YOUR CODE HERE ###
-        raise NotImplementedError("Needed for Q1")
+        for state in range(self.state_dim):
+            # Greedy action selection in state s
+            best_action = np.argmax(self._one_step_lookahead(state, V))
+            # Greedy policy update
+            policy[state, best_action] = 1.0
         return policy
 
     def solve(self, theta: float = 1e-6) -> Tuple[np.ndarray, np.ndarray]:
@@ -199,7 +228,7 @@ class PolicyIteration(MDPSolver):
 if __name__ == "__main__":
     mdp = MDP()
     mdp.add_transition(
-        #         start action end prob reward
+        #          state   action next_state prob reward
         Transition("high", "wait", "high", 1, 2),
         Transition("high", "search", "high", 0.8, 5),
         Transition("high", "search", "low", 0.2, 5),
@@ -218,10 +247,10 @@ if __name__ == "__main__":
     print("Value Function")
     print(valuefunc)
 
-    solver = PolicyIteration(mdp, 0.9)
-    policy, valuefunc = solver.solve()
-    print("---Policy Iteration---")
-    print("Policy:")
-    print(solver.decode_policy(policy))
-    print("Value Function")
-    print(valuefunc)
+    # solver = PolicyIteration(mdp, 0.9)
+    # policy, valuefunc = solver.solve()
+    # print("---Policy Iteration---")
+    # print("Policy:")
+    # print(solver.decode_policy(policy))
+    # print("Value Function")
+    # print(valuefunc)

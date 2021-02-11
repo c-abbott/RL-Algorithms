@@ -96,7 +96,7 @@ class MDP:
                 and t.next_state == transition.next_state
                 and t.action == transition.action
             ):
-                raise ValueError("Transition with same {s,a, s'} exists")
+                raise ValueError("Transition with same {s,a,s'} exists")
 
         self.transitions.append(transition)
 
