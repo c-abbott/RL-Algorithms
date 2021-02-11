@@ -7,9 +7,6 @@ from rl2021.utils import MDP, Transition, State, Action
 
 class MDPSolver(ABC):
     """Base class for MDP solvers
-
-    **DO NOT CHANGE THIS CLASS**
-
     :attr mdp (MDP): MDP to solve
     :attr gamma (float): discount factor gamma to use
     :attr action_dim (int): number of actions in the MDP
@@ -158,12 +155,29 @@ class ValueIteration(MDPSolver):
 class PolicyIteration(MDPSolver):
     """MDP solver using the Policy Iteration algorithm
     """
+    def _one_step_lookahead(self, state: int, V: np.ndarray) -> np.ndarray:
+        """
+            Calculates the values associated with a one step lookahead
+            from a specified state.
+
+            :param state (int): integer reprenting the current state of the MDP.
+            :param: V (np.ndarray): array of current state values.
+            :return action_values (np.ndarray): array of values associated with
+                                                states that can be reached via 
+                                                one step lookahead.
+        """
+        action_values = np.zeros(self.action_dim)
+        # Consider every possible state action pair from state s
+        for action in range(self.action_dim):
+            for next_state in range(self.state_dim):
+                # Update values given by Bellman equation
+                action_values[action] += self.mdp.P[state, action, next_state] * \
+                                    (self.mdp.R[state, action, next_state] + self.gamma * V[next_state])
+        return action_values
+
 
     def _policy_eval(self, policy: np.ndarray) -> np.ndarray:
         """Computes one policy evaluation step
-
-        **YOU MUST IMPLEMENT THIS FUNCTION FOR Q1**
-
         :param policy (np.ndarray of float with dim (num of states, num of actions)):
             A 2D NumPy array that encodes the policy.
             It is indexed as (STATE, ACTION) where policy[STATE, ACTION] has the probability of
@@ -176,9 +190,27 @@ class PolicyIteration(MDPSolver):
             A 1D NumPy array that encodes the computed value function
             It is indexed as (State) where V[State] is the value of state 'State'
         """
+
+        # Initialize value function as 0 everywhere
         V = np.zeros(self.state_dim)
-        ### PUT YOUR CODE HERE ###
-        raise NotImplementedError("Needed for Q1")
+        done = False 
+        while not done:
+            delta = 0
+            # Update each state
+            for state in range(self.state_dim):
+                # Store old state value
+                v = 0 
+                # Try all possible actions from state
+                for action, action_prob in enumerate(policy[state]):
+                    for next_state in range(self.state_dim):
+                        # Update values given by Bellman equation
+                        v += action_prob * self.mdp.P[state, action, next_state] * \
+                                    (self.mdp.R[state, action, next_state] + self.gamma * V[next_state])
+                delta = np.maximum(delta, np.abs(v - V[state]))
+                V[state] = v
+            # Convergence check
+            if delta < 1e-9:
+                done = True
         return np.array(V)
 
     def _policy_improvement(self) -> Tuple[np.ndarray, np.ndarray]:
@@ -200,11 +232,31 @@ class PolicyIteration(MDPSolver):
                        np.ndarray of float with dim (num of states)):
             Tuple of calculated policy and value function
         """
+        # Initialize arbitrart policy and value function
         policy = np.zeros([self.state_dim, self.action_dim])
         V = np.zeros([self.state_dim])
-        ### PUT YOUR CODE HERE ###
-        raise NotImplementedError("Needed for Q1")
-        return policy, V
+
+        done = False
+        while not done:
+            # 1. Policy evaluation
+            V = self._policy_eval(policy)
+
+            # 2. Policy improvement
+            stable_policy = True
+            for state in range(self.state_dim):
+                # Choose action greedily with respect to current policy
+                old_action = np.argmax(policy[state])
+                # One step lookahead to find new action
+                new_action = np.argmax(self._one_step_lookahead(state, V))
+
+                # Have we reached the optimal policy?
+                if old_action != new_action:
+                    stable_policy = False
+                    # Greedy policy update
+                    policy[state] = np.eye(self.action_dim)[new_action]
+                # A non-changing policy indicates convergence
+            if stable_policy:
+                return policy, V
 
     def solve(self, theta: float = 1e-6) -> Tuple[np.ndarray, np.ndarray]:
         """Solves the MDP
@@ -247,10 +299,10 @@ if __name__ == "__main__":
     print("Value Function")
     print(valuefunc)
 
-    # solver = PolicyIteration(mdp, 0.9)
-    # policy, valuefunc = solver.solve()
-    # print("---Policy Iteration---")
-    # print("Policy:")
-    # print(solver.decode_policy(policy))
-    # print("Value Function")
-    # print(valuefunc)
+    solver = PolicyIteration(mdp, 0.9)
+    policy, valuefunc = solver.solve()
+    print("---Policy Iteration---")
+    print("Policy:")
+    print(solver.decode_policy(policy))
+    print("Value Function")
+    print(valuefunc)
