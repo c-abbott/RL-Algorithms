@@ -4,7 +4,6 @@ from typing import List, Tuple, Dict, Optional, Hashable
 
 from rl2021.utils import MDP, Transition, State, Action
 
-
 class MDPSolver(ABC):
     """Base class for MDP solvers
     :attr mdp (MDP): MDP to solve
@@ -64,14 +63,14 @@ class ValueIteration(MDPSolver):
                                                 states that can be reached via 
                                                 one step lookahead.
         """
-        action_values = np.zeros(self.action_dim)
+        next_state_vals = np.zeros(self.action_dim)
         # Consider every possible state action pair from state s
         for action in range(self.action_dim):
             for next_state in range(self.state_dim):
                 # Update values given by Bellman equation
-                action_values[action] += self.mdp.P[state, action, next_state] * \
-                                    (self.mdp.R[state, action, next_state] + self.gamma * V[next_state])
-        return action_values
+                next_state_vals[action] += self.mdp.P[state, action, next_state] * \
+                                           (self.mdp.R[state, action, next_state] + self.gamma * V[next_state])
+        return next_state_vals
 
     def _calc_value_func(self, theta: float) -> np.ndarray:
         """Calculates the value function
@@ -92,20 +91,20 @@ class ValueIteration(MDPSolver):
         """
         # Initialize value function as 0 everywhere
         V = np.zeros(self.state_dim)
-        done = False 
-        while not done:
+        converged = False 
+        while not converged:
             delta = 0
             # Update each state
             for state in range(self.state_dim):
                 # Store old state value
                 v = V[state]
                 # Greedy update of state values via one step lookahead
-                action_values = self._one_step_lookahead(state, V)
-                V[state] = np.max(action_values)
+                next_state_vals = self._one_step_lookahead(state, V)
+                V[state] = np.amax(next_state_vals)
                 delta = np.maximum(delta, np.abs(v - V[state]))
             # Convergence check
             if delta < theta:
-                done = True
+                converged = True
         return V
 
     def _calc_policy(self, V: np.ndarray) -> np.ndarray:
@@ -128,7 +127,7 @@ class ValueIteration(MDPSolver):
             # Greedy action selection in state s
             best_action = np.argmax(self._one_step_lookahead(state, V))
             # Greedy policy update
-            policy[state, best_action] = 1.0
+            policy[state, best_action] = 1
         return policy
 
     def solve(self, theta: float = 1e-6) -> Tuple[np.ndarray, np.ndarray]:
@@ -155,6 +154,7 @@ class ValueIteration(MDPSolver):
 class PolicyIteration(MDPSolver):
     """MDP solver using the Policy Iteration algorithm
     """
+
     def _one_step_lookahead(self, state: int, V: np.ndarray) -> np.ndarray:
         """
             Calculates the values associated with a one step lookahead
@@ -166,16 +166,15 @@ class PolicyIteration(MDPSolver):
                                                 states that can be reached via 
                                                 one step lookahead.
         """
-        action_values = np.zeros(self.action_dim)
+        next_state_vals = np.zeros(self.action_dim)
         # Consider every possible state action pair from state s
         for action in range(self.action_dim):
             for next_state in range(self.state_dim):
                 # Update values given by Bellman equation
-                action_values[action] += self.mdp.P[state, action, next_state] * \
-                                    (self.mdp.R[state, action, next_state] + self.gamma * V[next_state])
-        return action_values
-
-
+                next_state_vals[action] += self.mdp.P[state, action, next_state] * \
+                                           (self.mdp.R[state, action, next_state] + self.gamma * V[next_state])
+        return next_state_vals
+        
     def _policy_eval(self, policy: np.ndarray) -> np.ndarray:
         """Computes one policy evaluation step
         :param policy (np.ndarray of float with dim (num of states, num of actions)):
@@ -193,8 +192,8 @@ class PolicyIteration(MDPSolver):
 
         # Initialize value function as 0 everywhere
         V = np.zeros(self.state_dim)
-        done = False 
-        while not done:
+        converged = False 
+        while not converged:
             delta = 0
             # Update each state
             for state in range(self.state_dim):
@@ -209,8 +208,8 @@ class PolicyIteration(MDPSolver):
                 delta = np.maximum(delta, np.abs(v - V[state]))
                 V[state] = v
             # Convergence check
-            if delta < 1e-9:
-                done = True
+            if delta < self.theta:
+                converged = True
         return np.array(V)
 
     def _policy_improvement(self) -> Tuple[np.ndarray, np.ndarray]:
@@ -232,29 +231,31 @@ class PolicyIteration(MDPSolver):
                        np.ndarray of float with dim (num of states)):
             Tuple of calculated policy and value function
         """
-        # Initialize arbitrart policy and value function
+        # Initialize arbitrary policy
         policy = np.zeros([self.state_dim, self.action_dim])
+        # Initialize arbitrary state values
         V = np.zeros([self.state_dim])
-
-        done = False
-        while not done:
+        while True:
             # 1. Policy evaluation
             V = self._policy_eval(policy)
 
-            # 2. Policy improvement
+            # Did the policy change after updating it?
             stable_policy = True
+            # Store old policy for comparison
+            old_policy = policy.copy()
+            
+            # 2. Policy improvement
             for state in range(self.state_dim):
-                # Choose action greedily with respect to current policy
-                old_action = np.argmax(policy[state])
-                # One step lookahead to find new action
-                new_action = np.argmax(self._one_step_lookahead(state, V))
+                # Perform one step lookahead
+                next_state_vals = self._one_step_lookahead(state, V)
+                # Greedy policy update
+                policy[state] = np.zeros(self.action_dim)
+                policy[state][np.argmax(next_state_vals)] = 1
 
-                # Have we reached the optimal policy?
-                if old_action != new_action:
+                # Have we reached convergence?
+                if not np.all(old_policy[state] == policy[state]):
                     stable_policy = False
-                    # Greedy policy update
-                    policy[state] = np.eye(self.action_dim)[new_action]
-                # A non-changing policy indicates convergence
+
             if stable_policy:
                 return policy, V
 
