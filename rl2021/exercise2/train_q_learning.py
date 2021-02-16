@@ -12,11 +12,10 @@ CONFIG = {
     "eps_max_steps": 100,
     "eval_episodes": 500,
     "eval_freq": 1000,
-    "gamma": 0.99,
+    "gamma": 0.95,
     "alpha": 0.5,
-    "epsilon": 0.0,
+    "epsilon": 0.05,
 }
-
 
 def q_learning_eval(
         env,
@@ -108,7 +107,7 @@ def train(env, config, output=True):
 if __name__ == "__main__":
     env = gym.make(CONFIG["env"])
     total_reward, _, _, q_table = train(env, CONFIG)
-    # print()
-    # print(f"Total reward over training: {total_reward}\n")
+    print()
+    print(f"Total reward over training: {total_reward}\n")
     # print("Q-table:")
     # print(q_table)

@@ -6,16 +6,16 @@ from rl2021.exercise2.utils import evaluate
 REAL_MAX_EPISODE_STEPS = 100 # CUT OF AN EPISODE THAT RUNS LONGER THAN THAT. DO NOT CHANGE
 
 ### TUNE HYPERPARAMETERS HERE ###
+# TODO: optimize hyperparameter settings
 CONFIG = {
     "env": "Taxi-v3",
-    "total_eps": 100000,
-    "eps_max_steps": 100,
+    "total_eps": 300000,
+    "eps_max_steps": 200,
     "eval_episodes": 500,
     "eval_freq": 5000,
     "gamma": 0.99,
-    "epsilon": 0.0,
+    "epsilon": 0.01,
 }
-
 
 def monte_carlo_eval(
         env,
@@ -109,7 +109,7 @@ def train(env, config):
 if __name__ == "__main__":
     env = gym.make(CONFIG["env"])
     total_reward, _, _, q_table = train(env, CONFIG)
-    # print()
-    # print(f"Total reward over training: {total_reward}\n")
+    print()
+    print(f"Total reward over training: {total_reward}\n")
     # print("Q-Table:")
     # print(q_table)
