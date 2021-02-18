@@ -13,7 +13,6 @@ class Agent(ABC):
     **ONLY CHANGE THE BODY OF THE act() FUNCTION**
 
     """
-
     def __init__(
         self,
         action_space: Space,
@@ -158,13 +157,18 @@ class MonteCarloAgent(Agent):
             indexed by the state action pair.
         """
         updated_values = {}
-        sa_pairs = list(zip(obses,actions))
+        # All state action pairs for a specific trajectory
+        sa_pairs = list(zip(obses, actions))
         G = 0
+        # Iterate backwards through a trajectory
         for t, (obs, a, r) in enumerate(zip(obses[::-1],actions[::-1],rewards[::-1])):
             G = self.gamma * G + r
+            # Checking if state action pair has been seen before
             if (obs, a) not in sa_pairs[:-(t+1)]:
+                # First-visit counter
                 self.sa_counts[(obs, a)] = 1 if (obs, a) not in self.sa_counts.keys() else self.sa_counts[(obs, a)] + 1
-                updated_values[(obs, a)] = self.q_table[(obs, a)] + 1 / (self.sa_counts[(obs, a)])*(G-self.q_table[(obs, a)])
+                # Online averaging of returns
+                updated_values[(obs, a)] = self.q_table[(obs, a)] + (G - self.q_table[(obs, a)]) / (self.sa_counts[(obs, a)]) 
         
         self.q_table.update(updated_values)
         return updated_values
@@ -172,12 +176,11 @@ class MonteCarloAgent(Agent):
     def schedule_hyperparameters(self, timestep: int, max_timestep: int):
         """Updates the hyperparameters
 
-        **YOU MUST IMPLEMENT THIS FUNCTION FOR Q2**
-
         This function is called before every episode and allows you to schedule your
         hyperparameters.
 
         :param timestep (int): current timestep at the beginning of the episode
         :param max_timestep (int): maximum timesteps that the training loop will run for
         """
-        self.epsilon = 1.0-(min(1.0, timestep/(0.04*max_timestep)))*0.975
+        self.epsilon = 0.7 - (min(0.2, timestep/(0.2*max_timestep)))*0.95
+        self.epsilon = min(self.epsilon, 1-min(1,timestep/(0.95*max_timestep)))
