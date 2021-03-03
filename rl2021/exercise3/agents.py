@@ -173,7 +173,7 @@ class DQN(Agent):
         :param max_timestep (int): maximum timesteps that the training loop will run for
         """
         ### PUT YOUR CODE HERE ###
-        raise NotImplementedError("Needed for Q3")
+        self.epsilon = 1.0-(min(1.0, timestep/(0.07*max_timestep)))*0.95
 
     def act(self, obs: np.ndarray, explore: bool):
         """Returns an action (should be called at every timestep)
@@ -188,8 +188,17 @@ class DQN(Agent):
         :param explore (bool): flag indicating whether we should explore
         :return (sample from self.action_space): action the agent should perform
         """
-        ### PUT YOUR CODE HERE ###
-        raise NotImplementedError("Needed for Q3")
+        a_vals = self.critics_net(torch.from_numpy(obs).float())
+        max_val = max(a_vals)
+        max_acts = [idx for idx, a_val in enumerate(a_vals) if a_val == max_val]
+
+        if explore:
+            if np.random.random() < self.epsilon:
+                return np.random.randint(0, self.action_space.n - 1)
+            else:
+                return np.random.choice(max_acts)
+        else:
+            return np.random.choice(max_acts)
 
     def update(self, batch: Transition) -> Dict[str, float]:
         """Update function for DQN
@@ -203,9 +212,16 @@ class DQN(Agent):
         :param batch (Transition): batch vector from replay buffer
         :return (Dict[str, float]): dictionary mapping from loss names to loss values
         """
-        ### PUT YOUR CODE HERE ###
-        raise NotImplementedError("Needed for Q3")
-        q_loss = 0.0
+        # Renaming for ease
+        states = batch[0] # 10 x nstates
+        actions = batch[1] # 10 x 2
+        next_states = batch[2] 
+        rewards = batch[3]
+        done_flags = batch[4]
+
+        a_vals = self.critics_net(states).gather(1, actions.long())
+        target_vals, _ = torch.max(self.critics_target(next_states), axis=1)
+        q_loss = (rewards + self.gamma*(1-done_flags)*target_vals - a_vals)**2
         return {"q_loss": q_loss}
 
 
