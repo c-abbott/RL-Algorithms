@@ -332,10 +332,10 @@ class Reinforce(Agent):
         :param explore (bool): flag indicating whether we should explore
         :return (sample from self.action_space): action the agent should perform
         """
-        # # Sample action from stochastic policy
-        # probs = self.policy(torch.from_numpy(obs).float())
-        # action_dist = Categorical(probs)
-        # return action_dist.sample().item()
+        # Sample action from stochastic policy
+        probs = self.policy(torch.from_numpy(obs).float())
+        action_dist = Categorical(probs)
+        return action_dist.sample().item()
 
     def update(
         self, rewards: List[float], observations: List[np.ndarray], actions: List[int],
