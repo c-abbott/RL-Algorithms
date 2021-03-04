@@ -210,9 +210,6 @@ class DQN(Agent):
 
     def update(self, batch: Transition) -> Dict[str, float]:
         """Update function for DQN
-
-        **YOU MUST IMPLEMENT THIS FUNCTION FOR Q3**
-
         This function is called after storing a transition in the replay buffer. This happens
         every timestep. It should update your network and return the Q-loss in the form of a
         dictionary.
@@ -245,9 +242,6 @@ class DQN(Agent):
 
 class Reinforce(Agent):
     """ The Reinforce Agent for Ex 3
-
-    ** YOU NEED TO IMPLEMENT THE FUNCTIONS IN THIS CLASS **
-
     :attr critics_net (FCNetwork): fully connected critic network to compute Q-value estimates
     :attr critics_target (FCNetwork): fully connected target critic network
     :attr critics_optim (torch.optim): PyTorch optimiser for critics network
@@ -299,6 +293,8 @@ class Reinforce(Agent):
         # ############################### #
         # WRITE ANY AGENT PARAMETERS HERE #
         # ############################### #
+        self.saved_log_probs = []
+        self.eps = np.finfo(np.float32).eps.item()
 
         # ###############################################
         self.saveables.update(
@@ -318,8 +314,7 @@ class Reinforce(Agent):
         :param timestep (int): current timestep at the beginning of the episode
         :param max_timestep (int): maximum timesteps that the training loop will run for
         """
-        # self.epsilon = 1.0-(min(1.0, timestep/(0.30*max_timestep)))*0.95
-        pass
+        self.epsilon = 1.0-(min(1.0, timestep/(0.10*max_timesteps)))*0.95
 
 
     def act(self, obs: np.ndarray, explore: bool):
@@ -333,16 +328,16 @@ class Reinforce(Agent):
         :return (sample from self.action_space): action the agent should perform
         """
         # Sample action from stochastic policy
-        probs = self.policy(torch.from_numpy(obs).float())
-        action_dist = Categorical(probs)
-        return action_dist.sample().item()
+        probs = self.policy(torch.from_numpy(obs).float().unsqueeze(0))
+        m = Categorical(probs)
+        action = m.sample()
+        self.saved_log_probs.append(m.log_prob(action))
+        return action.item()
 
     def update(
         self, rewards: List[float], observations: List[np.ndarray], actions: List[int],
         ) -> Dict[str, float]:
         """Update function for policy gradients
-
-        **YOU MUST IMPLEMENT THIS FUNCTION FOR Q3**
 
         :param rewards (List[float]): rewards of episode (from first to last)
         :param observations (List[np.ndarray]): observations of episode (from first to last)
@@ -350,6 +345,32 @@ class Reinforce(Agent):
         :return (Dict[str, float]): dictionary mapping from loss names to loss values
             losses
         """
-       
-        p_loss = 0.0
+        # Storage
+        R = 0
+        p_loss = []
+        returns = []
+
+        # Calculated disconted returns
+        for r in rewards[::-1]:
+            R = r + self.gamma * R
+            # Add returns to the start of the list ;)
+            returns.insert(0, R)
+        returns = torch.tensor(returns)
+        returns = (returns - returns.mean()) / (returns.std() + self.eps)
+
+        # Calculate loss
+        for log_prob, R in zip(self.saved_log_probs, returns):
+            p_loss.append(-log_prob * R)
+        p_loss = torch.cat(p_loss).sum()
+
+        # Optimize model
+        self.policy_optim.zero_grad()
+        p_loss.backward()
+        for param in self.policy.parameters():
+            param.grad.data.clamp_(-1, 1)
+        self.policy_optim.step()
+
+        # Delete saved_log_probs for next run
+        del self.saved_log_probs[:]
+        
         return {"p_loss": p_loss}
