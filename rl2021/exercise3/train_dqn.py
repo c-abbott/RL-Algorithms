@@ -21,7 +21,7 @@ CARTPOLE_CONFIG = {
     "eval_episodes": 5,
     "learning_rate": 1e-2,
     "hidden_size": (128,64),
-    "target_update_freq": 5000,
+    "target_update_freq": 200,
     "batch_size": 10,
     "gamma": 0.99,
     "buffer_capacity": int(1e6),

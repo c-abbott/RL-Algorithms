@@ -6,6 +6,7 @@ import os.path
 from torch import Tensor
 from torch.distributions.categorical import Categorical
 import torch.nn
+import torch.nn.functional as F
 from torch.optim import Adam
 from typing import Dict, Iterable, List
 from torch.autograd import Variable
@@ -212,26 +213,35 @@ class DQN(Agent):
         :param batch (Transition): batch vector from replay buffer
         :return (Dict[str, float]): dictionary mapping from loss names to loss values
         """
-        # Compute Q(s_t, a)
-        a_vals = self.critics_net(batch.states).gather(1, batch.actions.long())
+        # Grab expected Q values from the value nextwork of current states
+        q_now = self.critics_net(batch.states).gather(1, batch.actions.long())
+        # One step lookahead of next state action values
+        next_actions = torch.argmax(self.critics_net(batch.next_states), dim=1).view(-1,1)
+        q_targets_next = self.critics_target(batch.next_states).gather(1, next_actions)
+        # Compute targets of current states
+        q_targets = batch.rewards + (self.gamma * (1 - batch.done) * q_targets_next)
+        # Compute loss
+        q_loss = F.mse_loss(q_targets, q_now)
+
+# # In Double Deep Q Learning, we use the Q value attached to the best value from the model
+
+#         selected_actions = self.critics_net(batch.next_states).max(1)[1].detach().unsqueeze(1)
+#         q_max = (
+#             self.critics_target(batch.next_states).gather(1, selected_actions).squeeze(1)
+#         )
+#         q_targets = batch.rewards + (self.gamma * (1 - batch.done) * q_max.unsqueeze(1))
+#         #print(q_targets)
+
+#         # get Q for each action we took in states
+#         q = self.critics_net(batch.states).gather(1, batch.actions.long())
+#         #print(q)
+
+#         # Update the model
+#         q_loss = F.mse_loss(q, q_targets)
+#         print(q_loss.grad)
 
 
-         # Double DQN - Compute V(s_{t+1}) for all next states.
-        V_next_state = Variable(torch.zeros(self.batch_size).type(Tensor))
-        _, next_state_actions = self.critics_net(batch.next_states).max(1, keepdim=True)
-        V_next_state = self.critics_target(batch.next_states).gather(1, next_state_actions)
-        # Remove Volatile as it sets all variables computed from them volatile.
-        # The Variable will just have requires_grad=False.
-        V_next_state.volatile = False
 
-        # Compute the target Q values
-        target_vals = batch.rewards + (self.gamma * V_next_state)
-
-        # # Double DQN - Compute 
-        # _, next_state_actions = self.critics_net(batch.next_states).max(1, keepdim=True)
-        # target_vals = self.critics_target(batch.next_states).gather(1, next_state_actions)
-        # target_vals.requires_grad = False
-        q_loss = torch.mean((batch.rewards + self.gamma*(1-batch.done)*target_vals - a_vals)**2)
 
         # Optimize the model
         self.critics_optim.zero_grad()
@@ -239,12 +249,46 @@ class DQN(Agent):
         for param in self.critics_net.parameters():
             param.grad.data.clamp_(-1, 1)
         self.critics_optim.step()
+
+        # Periodically change target weights
         self.update_counter += 1
-
-
         if self.update_counter % self.target_update_freq == 0:
             self.critics_target.hard_update(self.critics_net)
         return {"q_loss": q_loss}
+
+        # # Compute Q(s_t, a)
+        # a_vals = self.critics_net(batch.states).gather(1, batch.actions.long())
+
+
+        #  # Double DQN - Compute V(s_{t+1}) for all next states.
+        # V_next_state = Variable(torch.zeros(self.batch_size).type(Tensor))
+        # _, next_state_actions = self.critics_net(batch.next_states).max(1, keepdim=True)
+        # V_next_state = self.critics_target(batch.next_states).gather(1, next_state_actions)
+        # # Remove Volatile as it sets all variables computed from them volatile.
+        # # The Variable will just have requires_grad=False.
+        # V_next_state.volatile = False
+
+        # # Compute the target Q values
+        # target_vals = batch.rewards + (self.gamma * V_next_state)
+
+        # # # Double DQN - Compute 
+        # # _, next_state_actions = self.critics_net(batch.next_states).max(1, keepdim=True)
+        # # target_vals = self.critics_target(batch.next_states).gather(1, next_state_actions)
+        # # target_vals.requires_grad = False
+        # q_loss = torch.mean((batch.rewards + self.gamma*(1-batch.done)*target_vals - a_vals)**2)
+
+        # # Optimize the model
+        # self.critics_optim.zero_grad()
+        # q_loss.backward()
+        # for param in self.critics_net.parameters():
+        #     param.grad.data.clamp_(-1, 1)
+        # self.critics_optim.step()
+        # self.update_counter += 1
+
+
+        # if self.update_counter % self.target_update_freq == 0:
+        #     self.critics_target.hard_update(self.critics_net)
+        # return {"q_loss": q_loss}
 
 
 class Reinforce(Agent):
