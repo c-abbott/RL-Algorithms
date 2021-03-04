@@ -173,8 +173,7 @@ class DQN(Agent):
         :param timestep (int): current timestep at the beginning of the episode
         :param max_timestep (int): maximum timesteps that the training loop will run for
         """
-        ### PUT YOUR CODE HERE ###
-        self.epsilon = 1.0-(min(1.0, timestep/(0.60*max_timestep)))*0.5
+        self.epsilon = 1.0-(min(1.0, timestep/(0.15*max_timestep)))*0.99
 
     def greedy_update(self, obs: np.ndarray):
         """
@@ -201,7 +200,7 @@ class DQN(Agent):
         # e-greedy policy 
         if explore:
             if np.random.random() < self.epsilon:
-                return np.random.randint(0, self.action_space.n - 1)
+                return np.random.randint(0, self.action_space.n)
             else:
                 return self.greedy_update(obs)
         # greedy policy
@@ -220,8 +219,9 @@ class DQN(Agent):
         # Grab expected Q values from the value nextwork of current states
         q_now = self.critics_net(batch.states).gather(1, batch.actions.long())
         # One step lookahead of next state action values
-        next_actions = torch.argmax(self.critics_net(batch.next_states), dim=1).view(-1,1)
-        q_next = self.critics_target(batch.next_states).gather(1, next_actions)
+        #next_actions = torch.argmax(self.critics_net(batch.next_states), dim=1).view(-1,1)
+        #q_next = self.critics_target(batch.next_states).gather(1, batch.actions.long()) # max_a Q(s_t+1, a)
+        q_next, _ = self.critics_target(batch.next_states).max(axis=1)
         # Compute targets of current states
         q_targets = batch.rewards + (self.gamma * (1 - batch.done) * q_next)
         # Compute loss
@@ -238,7 +238,7 @@ class DQN(Agent):
         self.update_counter += 1
         if self.update_counter % self.target_update_freq == 0:
             self.critics_target.hard_update(self.critics_net)
-        return {"q_loss": q_loss.detach()}
+        return {"q_loss": q_loss}
 
 class Reinforce(Agent):
     """ The Reinforce Agent for Ex 3
