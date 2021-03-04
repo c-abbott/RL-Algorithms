@@ -174,12 +174,21 @@ class DQN(Agent):
         :param max_timestep (int): maximum timesteps that the training loop will run for
         """
         ### PUT YOUR CODE HERE ###
-        self.epsilon = 1.0-(min(1.0, timestep/(0.50*max_timestep)))*0.95
+        self.epsilon = 1.0-(min(1.0, timestep/(0.60*max_timestep)))*0.5
+
+    def greedy_update(self, obs: np.ndarray):
+        """
+            Greedy policy update.
+
+            :param obs (np.ndarray): observation vector from the environment
+            :return (sample from self.action_space): greedy action the agent should perform
+        """
+        a_vals = self.critics_net(torch.from_numpy(obs).float())
+        max_acts = [idx for idx, a_val in enumerate(a_vals) if a_val == max(a_vals)]
+        return np.random.choice(max_acts)
 
     def act(self, obs: np.ndarray, explore: bool):
         """Returns an action (should be called at every timestep)
-
-        **YOU MUST IMPLEMENT THIS FUNCTION FOR Q3**
 
         When explore is False you should select the best action possible (greedy). However, during
         exploration, you should be implementing an exploration strategy (like e-greedy). Use
@@ -189,17 +198,15 @@ class DQN(Agent):
         :param explore (bool): flag indicating whether we should explore
         :return (sample from self.action_space): action the agent should perform
         """
-        a_vals = self.critics_net(torch.from_numpy(obs).float())
-        max_val = max(a_vals)
-        max_acts = [idx for idx, a_val in enumerate(a_vals) if a_val == max_val]
-
+        # e-greedy policy 
         if explore:
             if np.random.random() < self.epsilon:
                 return np.random.randint(0, self.action_space.n - 1)
             else:
-                return np.random.choice(max_acts)
+                return self.greedy_update(obs)
+        # greedy policy
         else:
-            return np.random.choice(max_acts)
+            return self.greedy_update(obs)
 
     def update(self, batch: Transition) -> Dict[str, float]:
         """Update function for DQN
@@ -217,31 +224,11 @@ class DQN(Agent):
         q_now = self.critics_net(batch.states).gather(1, batch.actions.long())
         # One step lookahead of next state action values
         next_actions = torch.argmax(self.critics_net(batch.next_states), dim=1).view(-1,1)
-        q_targets_next = self.critics_target(batch.next_states).gather(1, next_actions)
+        q_next = self.critics_target(batch.next_states).gather(1, next_actions)
         # Compute targets of current states
-        q_targets = batch.rewards + (self.gamma * (1 - batch.done) * q_targets_next)
+        q_targets = batch.rewards + (self.gamma * (1 - batch.done) * q_next)
         # Compute loss
         q_loss = F.mse_loss(q_targets, q_now)
-
-# # In Double Deep Q Learning, we use the Q value attached to the best value from the model
-
-#         selected_actions = self.critics_net(batch.next_states).max(1)[1].detach().unsqueeze(1)
-#         q_max = (
-#             self.critics_target(batch.next_states).gather(1, selected_actions).squeeze(1)
-#         )
-#         q_targets = batch.rewards + (self.gamma * (1 - batch.done) * q_max.unsqueeze(1))
-#         #print(q_targets)
-
-#         # get Q for each action we took in states
-#         q = self.critics_net(batch.states).gather(1, batch.actions.long())
-#         #print(q)
-
-#         # Update the model
-#         q_loss = F.mse_loss(q, q_targets)
-#         print(q_loss.grad)
-
-
-
 
         # Optimize the model
         self.critics_optim.zero_grad()
@@ -254,42 +241,7 @@ class DQN(Agent):
         self.update_counter += 1
         if self.update_counter % self.target_update_freq == 0:
             self.critics_target.hard_update(self.critics_net)
-        return {"q_loss": q_loss}
-
-        # # Compute Q(s_t, a)
-        # a_vals = self.critics_net(batch.states).gather(1, batch.actions.long())
-
-
-        #  # Double DQN - Compute V(s_{t+1}) for all next states.
-        # V_next_state = Variable(torch.zeros(self.batch_size).type(Tensor))
-        # _, next_state_actions = self.critics_net(batch.next_states).max(1, keepdim=True)
-        # V_next_state = self.critics_target(batch.next_states).gather(1, next_state_actions)
-        # # Remove Volatile as it sets all variables computed from them volatile.
-        # # The Variable will just have requires_grad=False.
-        # V_next_state.volatile = False
-
-        # # Compute the target Q values
-        # target_vals = batch.rewards + (self.gamma * V_next_state)
-
-        # # # Double DQN - Compute 
-        # # _, next_state_actions = self.critics_net(batch.next_states).max(1, keepdim=True)
-        # # target_vals = self.critics_target(batch.next_states).gather(1, next_state_actions)
-        # # target_vals.requires_grad = False
-        # q_loss = torch.mean((batch.rewards + self.gamma*(1-batch.done)*target_vals - a_vals)**2)
-
-        # # Optimize the model
-        # self.critics_optim.zero_grad()
-        # q_loss.backward()
-        # for param in self.critics_net.parameters():
-        #     param.grad.data.clamp_(-1, 1)
-        # self.critics_optim.step()
-        # self.update_counter += 1
-
-
-        # if self.update_counter % self.target_update_freq == 0:
-        #     self.critics_target.hard_update(self.critics_net)
-        # return {"q_loss": q_loss}
-
+        return {"q_loss": q_loss.detach()}
 
 class Reinforce(Agent):
     """ The Reinforce Agent for Ex 3
@@ -366,13 +318,12 @@ class Reinforce(Agent):
         :param timestep (int): current timestep at the beginning of the episode
         :param max_timestep (int): maximum timesteps that the training loop will run for
         """
-        ### PUT YOUR CODE HERE ###
-        raise NotImplementedError("Needed for Q3")
+        # self.epsilon = 1.0-(min(1.0, timestep/(0.30*max_timestep)))*0.95
+        pass
+
 
     def act(self, obs: np.ndarray, explore: bool):
         """Returns an action (should be called at every timestep)
-
-        **YOU MUST IMPLEMENT THIS FUNCTION FOR Q3**
 
         Select an action from the model's stochastic policy by sampling a discrete action
         from the distribution specified by the model output
@@ -381,8 +332,10 @@ class Reinforce(Agent):
         :param explore (bool): flag indicating whether we should explore
         :return (sample from self.action_space): action the agent should perform
         """
-        ### PUT YOUR CODE HERE ###
-        raise NotImplementedError("Needed for Q3")
+        # # Sample action from stochastic policy
+        # probs = self.policy(torch.from_numpy(obs).float())
+        # action_dist = Categorical(probs)
+        # return action_dist.sample().item()
 
     def update(
         self, rewards: List[float], observations: List[np.ndarray], actions: List[int],
@@ -397,7 +350,6 @@ class Reinforce(Agent):
         :return (Dict[str, float]): dictionary mapping from loss names to loss values
             losses
         """
-        ### PUT YOUR CODE HERE ###
-        raise NotImplementedError("Needed for Q3")
+       
         p_loss = 0.0
         return {"p_loss": p_loss}
