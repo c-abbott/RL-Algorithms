@@ -14,13 +14,13 @@ RENDER = False # FALSE FOR FASTER TRAINING / TRUE TO VISUALIZE ENVIRONMENT DURIN
 ### TUNE HYPERPARAMETERS HERE ###
 CARTPOLE_CONFIG = {
     "env": "CartPole-v1",
-    "episode_length": 300,
+    "episode_length": 500,
     "max_timesteps": 20000,
     "max_time": 30 * 60,
     "eval_freq": 1000, # HOW OFTEN WE EVALUATE (AND RENDER IF RENDER=TRUE)
     "eval_episodes": 5,
     "learning_rate": 5e-4,
-    "hidden_size": (32, 16),
+    "hidden_size": (128,),
     "target_update_freq": 250,
     "batch_size": 32,
     "gamma": 0.90,
