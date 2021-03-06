@@ -14,16 +14,16 @@ RENDER = False # FALSE FOR FASTER TRAINING / TRUE TO VISUALIZE ENVIRONMENT DURIN
 ### TUNE HYPERPARAMETERS HERE ###
 CARTPOLE_CONFIG = {
     "env": "CartPole-v1",
-    "episode_length": 200,
+    "episode_length": 300,
     "max_timesteps": 20000,
     "max_time": 30 * 60,
     "eval_freq": 1000, # HOW OFTEN WE EVALUATE (AND RENDER IF RENDER=TRUE)
     "eval_episodes": 5,
-    "learning_rate": 1e-2,
-    "hidden_size": (128,64),
-    "target_update_freq": 200,
-    "batch_size": 10,
-    "gamma": 0.99,
+    "learning_rate": 5e-4,
+    "hidden_size": (32, 16),
+    "target_update_freq": 250,
+    "batch_size": 32,
+    "gamma": 0.90,
     "buffer_capacity": int(1e6),
     "plot_loss": False, # SET TRUE FOR 3.3 (Understanding the Loss)
     "save_filename": None,
@@ -37,7 +37,7 @@ LUNARLANDER_CONFIG = {
     "eval_freq": 5000,
     "eval_episodes": 5,  # DECREASING THIS MIGHT REDUCE EVALUATION ACCURACY; BUT MAKES IT EASIER TO SEE HOW THE POLICY EVOLVES OVER TIME (BY ENABLING RENDER ABOVE)
     "learning_rate": 1e-2,
-    "hidden_size": (128, 64),
+    "hidden_size": (32, 16),
     "target_update_freq": 5000,
     "batch_size": 10,
     "gamma": 0.99,
@@ -160,6 +160,7 @@ def train(env: gym.Env, config, output: bool = True) -> Tuple[List[float], List[
                         f"Evaluation at timestep {timesteps_elapsed} returned a mean returns of {eval_returns}"
                     )
                     pbar.write(f"Epsilon = {agent.epsilon}")
+                    pbar.write(f"lr = {agent.learning_rate}")
                 eval_returns_all.append(eval_returns)
                 eval_times_all.append(time.time() - start_time)
         

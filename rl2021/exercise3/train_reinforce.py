@@ -13,12 +13,12 @@ RENDER = False # FALSE FOR FASTER TRAINING / TRUE TO VISUALIZE ENVIRONMENT DURIN
 CARTPOLE_CONFIG = {
     "env": "CartPole-v1",
     "episode_length": 200,
-    "max_timesteps": 200000,
+    "max_timesteps": 300000,
     "eval_freq": 5000,
     "eval_episodes": 5,
     "max_time": 30 * 60,
     "gamma": 0.99,
-    "hidden_size": (16,16),
+    "hidden_size": (32, 16),
     "learning_rate": 1e-2,
     "save_filename": None,
 }
@@ -132,6 +132,7 @@ def train(env: gym.Env, config, output: bool = True) -> Tuple[List[float], List[
                     eval_return += total_reward / (config["eval_episodes"])
                 if output:
                     pbar.write(
+                        f"eps: {agent.epsilon}\n"
                         f"Evaluation at timestep {timesteps_elapsed} returned a mean return of {eval_return}"
                     )
                 eval_returns_all.append(eval_return)
