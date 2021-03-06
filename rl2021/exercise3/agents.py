@@ -112,9 +112,6 @@ class DQN(Agent):
         **kwargs,
     ):
         """The constructor of the DQN agent class
-
-        **YOU MUST IMPLEMENT THIS FUNCTION FOR Q3**
-
         :param action_space (gym.Space): environment's action space
         :param observation_space (gym.Space): environment's observation space
         :param learning_rate (float): learning rate for DQN optimisation
@@ -151,7 +148,6 @@ class DQN(Agent):
         self.batch_size = batch_size
         self.gamma = gamma
 
-        self.epsilon = 1
         # ######################################### #
 
         self.saveables.update(
@@ -173,7 +169,7 @@ class DQN(Agent):
         :param timestep (int): current timestep at the beginning of the episode
         :param max_timestep (int): maximum timesteps that the training loop will run for
         """
-        self.epsilon = 1.0-(min(1.0, timestep/(0.15*max_timestep)))*0.99
+        self.epsilon = 1.0-(min(1.0, timestep/(0.25*max_timestep)))*0.95
 
     def greedy_update(self, obs: np.ndarray):
         """
@@ -182,8 +178,8 @@ class DQN(Agent):
             :param obs (np.ndarray): observation vector from the environment
             :return (sample from self.action_space): greedy action the agent should perform
         """
-        a_vals = self.critics_net(torch.from_numpy(obs).float())
-        max_acts = [idx for idx, a_val in enumerate(a_vals) if a_val == max(a_vals)]
+        q_vals = self.critics_net(torch.from_numpy(obs).float())
+        max_acts = [idx for idx, q_val in enumerate(q_vals) if q_val == max(q_vals)]
         return np.random.choice(max_acts)
 
     def act(self, obs: np.ndarray, explore: bool):
@@ -217,11 +213,9 @@ class DQN(Agent):
         :return (Dict[str, float]): dictionary mapping from loss names to loss values
         """
         # Grab expected Q values from the value nextwork of current states
-        q_now = self.critics_net(batch.states).gather(1, batch.actions.long())
-        # One step lookahead of next state action values
-        #next_actions = torch.argmax(self.critics_net(batch.next_states), dim=1).view(-1,1)
-        #q_next = self.critics_target(batch.next_states).gather(1, batch.actions.long()) # max_a Q(s_t+1, a)
-        q_next, _ = self.critics_target(batch.next_states).max(axis=1)
+        q_now = self.critics_net(batch.states).gather(1, batch.actions.long()) # Q(s_t, a_t; \theta)
+        # Query target network for next state action values
+        q_next = self.critics_target(batch.next_states).detach().max(1)[0].unsqueeze(1) # max a' Q(s_t+1, a'; \theta')
         # Compute targets of current states
         q_targets = batch.rewards + (self.gamma * (1 - batch.done) * q_next)
         # Compute loss
@@ -314,7 +308,8 @@ class Reinforce(Agent):
         :param timestep (int): current timestep at the beginning of the episode
         :param max_timestep (int): maximum timesteps that the training loop will run for
         """
-        self.epsilon = 1.0-(min(1.0, timestep/(0.10*max_timesteps)))*0.95
+        self.epsilon = 1.0 - (min(1.0, timestep / (0.2*max_timesteps)))*0.95
+        self.epsilon = min(self.epsilon, 1 - min(1, timestep/(0.40*max_timesteps)))
 
 
     def act(self, obs: np.ndarray, explore: bool):
@@ -346,15 +341,15 @@ class Reinforce(Agent):
             losses
         """
         # Storage
-        R = 0
+        G = 0
         p_loss = []
         returns = []
 
         # Calculated disconted returns
         for r in rewards[::-1]:
-            R = r + self.gamma * R
+            G = r + self.gamma * G
             # Add returns to the start of the list ;)
-            returns.insert(0, R)
+            returns.insert(0, G)
         returns = torch.tensor(returns)
         returns = (returns - returns.mean()) / (returns.std() + self.eps)
 
