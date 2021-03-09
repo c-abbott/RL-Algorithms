@@ -89,7 +89,7 @@ class DDPG(Agent):
         # ################################################### #
 
         ### PUT YOUR CODE HERE ###
-        raise NotImplementedError("Needed for Q4")
+        self.noise = Normal(torch.zeros(self.ACTION_SIZE), 0.1*torch.eye(self.ACTION_SIZE))
 
         # ############################### #
         # WRITE ANY AGENT PARAMETERS HERE #
@@ -145,12 +145,10 @@ class DDPG(Agent):
         :param max_timestep (int): maximum timesteps that the training loop will run for
         """
         ### PUT YOUR CODE HERE ###
-        raise NotImplementedError("Needed for Q4")
+        pass
 
     def act(self, obs: np.ndarray, explore: bool):
         """Returns an action (should be called at every timestep)
-
-        **YOU MUST IMPLEMENT THIS FUNCTION FOR Q4**
 
         When explore is False you should select the best action possible (greedy). However, during exploration,
         you should be implementing exporation using the self.noise variable that you should have declared in the __init__.
@@ -160,14 +158,18 @@ class DDPG(Agent):
         :param explore (bool): flag indicating whether we should explore
         :return (sample from self.action_space): action the agent should perform
         """
-        ### PUT YOUR CODE HERE ###
-        raise NotImplementedError("Needed for Q4")
+        # Get the continous action value to perform in the env
+        mu = self.actor(obs).data
+        # Exploration noise
+        if explore:
+            mu += self.noise.sample()
+        # Clip the action according to env
+        mu = mu.clamp(self.ACTION_SIZE.low[0], self.ACTION_SIZE.high[0])
+        return mu
 
     def update(self, batch: Transition) -> Dict[str, float]:
         """Update function for DQN
-        
-        **YOU MUST IMPLEMENT THIS FUNCTION FOR Q4**
-
+    
         This function is called after storing a transition in the replay buffer. This happens
         every timestep. It should update your networks and return the q_loss and the policy_loss in the form of a
         dictionary.
