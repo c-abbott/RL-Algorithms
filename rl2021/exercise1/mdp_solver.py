@@ -93,7 +93,7 @@ class ValueIteration(MDPSolver):
         V = np.zeros(self.state_dim)
         converged = False 
         while not converged:
-            delta = 0
+            delta = 0 # Change in state value function
             # Update each state
             for state in range(self.state_dim):
                 # Store old state value
@@ -101,7 +101,7 @@ class ValueIteration(MDPSolver):
                 # Greedy update of state values via one step lookahead
                 next_state_vals = self._one_step_lookahead(state, V)
                 V[state] = np.amax(next_state_vals)
-                delta = np.maximum(delta, np.abs(v - V[state]))
+                delta = max(delta, np.abs(v - V[state]))
             # Convergence check
             if delta < theta:
                 converged = True
@@ -189,27 +189,16 @@ class PolicyIteration(MDPSolver):
             A 1D NumPy array that encodes the computed value function
             It is indexed as (State) where V[State] is the value of state 'State'
         """
-
-        # Initialize value function as 0 everywhere
         V = np.zeros(self.state_dim)
-        converged = False 
-        while not converged:
+        delta = float('inf')
+        while delta > self.theta:
             delta = 0
-            # Update each state
             for state in range(self.state_dim):
-                # Store old state value
-                v = 0 
-                # Try all possible actions from state
-                for action, action_prob in enumerate(policy[state]):
-                    for next_state in range(self.state_dim):
-                        # Update values given by Bellman equation
-                        v += action_prob * self.mdp.P[state, action, next_state] * \
-                                    (self.mdp.R[state, action, next_state] + self.gamma * V[next_state])
-                delta = np.maximum(delta, np.abs(v - V[state]))
-                V[state] = v
-            # Convergence check
-            if delta < self.theta:
-                converged = True
+                v = V[state]
+                probs = policy[state] @ self.mdp.P[state, :, :]    # 1 x state_dim
+                rewards = policy[state] @ self.mdp.R[state, :, :]  # 1 x state_dim
+                V[state] = np.sum(probs*(rewards + self.gamma*V))
+                delta = max(delta, np.abs(v-V[state]))
         return np.array(V)
 
     def _policy_improvement(self) -> Tuple[np.ndarray, np.ndarray]:
