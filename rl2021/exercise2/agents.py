@@ -182,5 +182,5 @@ class MonteCarloAgent(Agent):
         :param timestep (int): current timestep at the beginning of the episode
         :param max_timestep (int): maximum timesteps that the training loop will run for
         """
-        self.epsilon = 0.7 - (min(0.7, timestep / (0.2*max_timestep)))*0.95
+        self.epsilon = 0.7 - (min(0.7, timestep / (0.5*max_timestep)))*0.95
         self.epsilon = min(self.epsilon, 1 - min(1, timestep/(0.95*max_timestep)))
