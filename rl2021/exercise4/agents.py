@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 
 from rl2021.exercise3.agents import Agent
-from rl2021.exercise3.networks import FCNetwork
+from rl2021.exercise3.networks import FCNetwork, Tanh2
 from rl2021.exercise3.replay import Transition
 
 
@@ -56,10 +56,10 @@ class DDPG(Agent):
         #  BUILD YOUR NETWORKS AND OPTIMIZERS HERE  #
         # ######################################### #
         self.actor = FCNetwork(
-            (STATE_SIZE, *policy_hidden_size, ACTION_SIZE), output_activation=torch.nn.Tanh
+            (STATE_SIZE, *policy_hidden_size, ACTION_SIZE), output_activation=Tanh2
         )
         self.actor_target = FCNetwork(
-            (STATE_SIZE, *policy_hidden_size, ACTION_SIZE), output_activation=torch.nn.Tanh
+            (STATE_SIZE, *policy_hidden_size, ACTION_SIZE), output_activation=Tanh2
         )
 
         self.actor_target.hard_update(self.actor)
@@ -89,7 +89,7 @@ class DDPG(Agent):
         # ################################################### #
 
         ### PUT YOUR CODE HERE ###
-        self.noise = Normal(torch.zeros(self.ACTION_SIZE), 0.1*torch.eye(self.ACTION_SIZE))
+        self.noise = Normal(torch.zeros(ACTION_SIZE), 0.1*torch.eye(ACTION_SIZE))
 
         # ############################### #
         # WRITE ANY AGENT PARAMETERS HERE #
@@ -159,12 +159,14 @@ class DDPG(Agent):
         :return (sample from self.action_space): action the agent should perform
         """
         # Get the continous action value to perform in the env
-        mu = self.actor(obs).data
+        obs = torch.from_numpy(obs.astype('float32')).unsqueeze(0)
+        mu = self.actor(obs)
+        mu = mu.data
         # Exploration noise
         if explore:
             mu += self.noise.sample()
         # Clip the action according to env
-        mu = mu.clamp(self.ACTION_SIZE.low[0], self.ACTION_SIZE.high[0])
+        mu = mu.clamp(-2, 2)
         return mu
 
     def update(self, batch: Transition) -> Dict[str, float]:
@@ -177,10 +179,33 @@ class DDPG(Agent):
         :param batch (Transition): batch vector from replay buffer
         :return (Dict[str, float]): dictionary mapping from loss names to loss values
         """
-        ### PUT YOUR CODE HERE ###
-        raise NotImplementedError("Needed for Q4")
-        
-        q_loss = 0.0
-        p_loss = 0.0
+        # Next state actions and action value fns for target
+        next_actions = self.actor_target(batch.next_states).detach()
+        next_sa_pairs = torch.cat((batch.next_states, next_actions), 1)
+        next_state_q_vals = self.critic_target(next_sa_pairs).detach()
+
+        # Compute target
+        q_target = batch.rewards + (1 - batch.done) * self.gamma * next_state_q_vals
+
+        # Update critic
+        self.critic_optim.zero_grad()
+        sa_pairs = torch.cat((batch.states, batch.actions), 1)
+        q_now = self.critic(sa_pairs)
+        q_loss = F.mse_loss(q_target, q_now)
+        q_loss.backward()
+        self.critic_optim.step()
+
+        # Update actor
+        self.policy_optim.zero_grad()
+        psa_pairs = torch.cat((batch.states, self.actor(batch.states)), 1)
+        p_loss = -self.critic(psa_pairs)
+        p_loss = p_loss.mean()
+        p_loss.backward()
+        self.policy_optim.step()
+
+        # Update targets networks
+        self.critic_target.soft_update(self.critic, self.tau)
+        self.actor_target.soft_update(self.actor, self.tau)
+
         return {"q_loss": q_loss,
                 "p_loss": p_loss}
