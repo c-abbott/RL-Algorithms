@@ -8,21 +8,21 @@ from rl2021.exercise3.agents import Reinforce
 
 RENDER = False # FALSE FOR FASTER TRAINING / TRUE TO VISUALIZE ENVIRONMENT DURING EVALUATION
 
+CARTPOLE_MAX_EPISODE_STEPS = 200 # USED FOR EVALUATION / DO NOT CHANGE
 
-### TUNE HYPERPARAMETERS HERE ###
+# ### TUNE HYPERPARAMETERS HERE ###
 CARTPOLE_CONFIG = {
     "env": "CartPole-v1",
     "episode_length": 500,
-    "max_timesteps": 400000,
+    "max_timesteps": 200000,
     "eval_freq": 5000,
     "eval_episodes": 5,
     "max_time": 30 * 60,
     "gamma": 0.99,
-    "hidden_size": (256,),
-    "learning_rate": 5e-4,
-    "save_filename": None,
+    "hidden_size": (128, ),
+    "learning_rate": 1e-4,
+    "save_filename": None
 }
-
 CONFIG = CARTPOLE_CONFIG
 
 
@@ -120,6 +120,11 @@ def train(env: gym.Env, config, output: bool = True) -> Tuple[List[float], List[
 
             if timesteps_elapsed % config["eval_freq"] < num_steps:
                 eval_return = 0
+                if config["env"] == "CartPole-v1":
+                    max_steps = CARTPOLE_MAX_EPISODE_STEPS
+                else:
+                    raise ValueError(f"Unknown environment {config['env']}")
+
                 for _ in range(config["eval_episodes"]):
                     _, total_reward = play_episode(
                         env,
@@ -127,7 +132,7 @@ def train(env: gym.Env, config, output: bool = True) -> Tuple[List[float], List[
                         train=False,
                         explore=False,
                         render=RENDER,
-                        max_steps=config["episode_length"],
+                        max_steps=max_steps,
                     )
                     eval_return += total_reward / (config["eval_episodes"])
                 if output:
