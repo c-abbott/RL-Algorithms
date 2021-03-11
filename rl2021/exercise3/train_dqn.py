@@ -11,6 +11,9 @@ from rl2021.exercise3.replay import ReplayBuffer
 
 RENDER = False # FALSE FOR FASTER TRAINING / TRUE TO VISUALIZE ENVIRONMENT DURING EVALUATION
 
+CARTPOLE_MAX_EPISODE_STEPS = 200 # USED FOR EVALUATION / DO NOT CHANGE
+LUNARLANDER_MAX_EPISODE_STEPS = 500 # USED FOR EVALUATION / DO NOT CHANGE
+
 ### TUNE HYPERPARAMETERS HERE ###
 CARTPOLE_CONFIG = {
     "env": "CartPole-v1",
@@ -29,26 +32,44 @@ CARTPOLE_CONFIG = {
     "save_filename": None,
 }
 
+
 LUNARLANDER_CONFIG = {
     "env": "LunarLander-v2",
     "episode_length": 500,
     "max_timesteps": 300000,
     "max_time": 120 * 60,
-    "eval_freq": 5000,
-    "eval_episodes": 5,  # DECREASING THIS MIGHT REDUCE EVALUATION ACCURACY; BUT MAKES IT EASIER TO SEE HOW THE POLICY EVOLVES OVER TIME (BY ENABLING RENDER ABOVE)
-    "learning_rate": 1e-2,
-    "hidden_size": (32, 16),
-    "target_update_freq": 5000,
-    "batch_size": 10,
+    "eval_freq": 10000,
+    "eval_episodes": 10,  
+    "learning_rate": 5e-4,
+    "hidden_size": (128,64),
+    "target_update_freq": 1250,
+    "batch_size": 128,
     "gamma": 0.99,
-    "buffer_capacity": int(1e6),
+    "buffer_capacity": int(30000),
     "plot_loss": False,
     "save_filename": "dqn_lunarlander_latest.pt",
 }
 
+# LUNARLANDER_CONFIG = {
+#     "env": "LunarLander-v2",
+#     "episode_length": 500,
+#     "max_timesteps": 300000,
+#     "max_time": 120 * 60,
+#     "eval_freq": 5000,
+#     "eval_episodes": 5,  # DECREASING THIS MIGHT REDUCE EVALUATION ACCURACY; BUT MAKES IT EASIER TO SEE HOW THE POLICY EVOLVES OVER TIME (BY ENABLING RENDER ABOVE)
+#     "learning_rate": 1e-3,
+#     "hidden_size": (256,128),
+#     "target_update_freq": 100,
+#     "batch_size": 10,
+#     "gamma": 0.99,
+#     "buffer_capacity": int(1e6),
+#     "plot_loss": False,
+#     "save_filename": "dqn_lunarlander_latest.pt",
+# }
 
-CONFIG = CARTPOLE_CONFIG
-# CONFIG = LUNARLANDER_CONFIG
+
+#CONFIG = CARTPOLE_CONFIG
+CONFIG = LUNARLANDER_CONFIG
 
 
 def play_episode(
@@ -143,6 +164,13 @@ def train(env: gym.Env, config, output: bool = True) -> Tuple[List[float], List[
 
             if timesteps_elapsed % config["eval_freq"] < episode_timesteps:
                 eval_returns = 0
+                if config["env"] == "CartPole-v1":
+                    max_steps = CARTPOLE_MAX_EPISODE_STEPS
+                elif config["env"] == "LunarLander-v2":
+                    max_steps = LUNARLANDER_MAX_EPISODE_STEPS
+                else:
+                    raise ValueError(f"Unknown environment {config['env']}")
+
                 for _ in range(config["eval_episodes"]):
                     _, episode_return, _ = play_episode(
                         env,
@@ -151,7 +179,7 @@ def train(env: gym.Env, config, output: bool = True) -> Tuple[List[float], List[
                         train=False,
                         explore=False,
                         render=RENDER,
-                        max_steps=config["episode_length"],
+                        max_steps = max_steps,
                         batch_size=config["batch_size"],
                     )
                     eval_returns += episode_return / config["eval_episodes"]
