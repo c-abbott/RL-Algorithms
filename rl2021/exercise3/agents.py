@@ -12,6 +12,7 @@ from typing import Dict, Iterable, List
 from torch.autograd import Variable
 from rl2021.exercise3.networks import FCNetwork
 from rl2021.exercise3.replay import Transition, ReplayBuffer
+import random
 
 
 class Agent(ABC):
@@ -169,18 +170,7 @@ class DQN(Agent):
         :param timestep (int): current timestep at the beginning of the episode
         :param max_timestep (int): maximum timesteps that the training loop will run for
         """
-        self.epsilon = 1.0-(min(1.0, timestep/(0.25*max_timestep)))*0.95
-
-    def greedy_update(self, obs: np.ndarray):
-        """
-            Greedy policy update.
-
-            :param obs (np.ndarray): observation vector from the environment
-            :return (sample from self.action_space): greedy action the agent should perform
-        """
-        q_vals = self.critics_net(torch.from_numpy(obs).float())
-        max_acts = [idx for idx, q_val in enumerate(q_vals) if q_val == max(q_vals)]
-        return np.random.choice(max_acts)
+        self.epsilon = 1.0-(min(1.0, timestep/(0.35 *max_timestep)))*0.95
 
     def act(self, obs: np.ndarray, explore: bool):
         """Returns an action (should be called at every timestep)
@@ -193,15 +183,14 @@ class DQN(Agent):
         :param explore (bool): flag indicating whether we should explore
         :return (sample from self.action_space): action the agent should perform
         """
-        # e-greedy policy 
-        if explore:
-            if np.random.random() < self.epsilon:
-                return np.random.randint(0, self.action_space.n)
-            else:
-                return self.greedy_update(obs)
-        # greedy policy
+        # Exploring (e-greedy update)
+        if explore and random.random() < self.epsilon:
+            return random.randrange(self.action_space.n)
+        # Greedy update
         else:
-            return self.greedy_update(obs)
+            actions = self.critics_net.forward(torch.from_numpy(obs).float())
+            a = torch.argmax(actions)
+            return a.item()
 
     def update(self, batch: Transition) -> Dict[str, float]:
         """Update function for DQN
@@ -276,7 +265,7 @@ class Reinforce(Agent):
             (STATE_SIZE, *hidden_size, ACTION_SIZE), output_activation=torch.nn.modules.activation.Softmax
         )
 
-        self.policy_optim = Adam(self.policy.parameters(), lr=learning_rate, eps=1e-3)
+        self.policy_optim = Adam(self.policy.parameters(), lr=learning_rate, eps=0.001)
 
         # ############################################# #
         # WRITE ANY EXTRA HYPERPARAMETERS YOU NEED HERE #
@@ -288,7 +277,6 @@ class Reinforce(Agent):
         # WRITE ANY AGENT PARAMETERS HERE #
         # ############################### #
         self.saved_log_probs = []
-        self.eps = np.finfo(np.float32).eps.item()
 
         # ###############################################
         self.saveables.update(
@@ -308,9 +296,7 @@ class Reinforce(Agent):
         :param timestep (int): current timestep at the beginning of the episode
         :param max_timestep (int): maximum timesteps that the training loop will run for
         """
-        self.epsilon = 1.0 - (min(1.0, timestep / (0.2*max_timesteps)))*0.95
-        self.epsilon = min(self.epsilon, 1 - min(1, timestep/(0.40*max_timesteps)))
-
+        pass
 
     def act(self, obs: np.ndarray, explore: bool):
         """Returns an action (should be called at every timestep)
@@ -322,13 +308,16 @@ class Reinforce(Agent):
         :param explore (bool): flag indicating whether we should explore
         :return (sample from self.action_space): action the agent should perform
         """
-        # Sample action from stochastic policy
-        probs = self.policy(torch.from_numpy(obs).float().unsqueeze(0))
-        m = Categorical(probs)
-        action = m.sample()
-        self.saved_log_probs.append(m.log_prob(action))
-        return action.item()
+        # Sample policy for action probabilities
+        probs = self.policy(torch.from_numpy(obs).float())
+        # Sample action according to policy
+        action = np.random.choice(range(self.action_space.n), p=probs.detach().numpy())
 
+        if explore: # Training time
+            return action
+        else: # Greedy at eval time --> obey learnt policy
+            return np.argmax(probs.detach().numpy())
+        
     def update(
         self, rewards: List[float], observations: List[np.ndarray], actions: List[int],
         ) -> Dict[str, float]:
@@ -339,33 +328,27 @@ class Reinforce(Agent):
         :param actions (List[int]): applied actions of episode (from first to last)
         :return (Dict[str, float]): dictionary mapping from loss names to loss values
             losses
-        """
-        # Storage
-        G = 0
-        p_loss = []
+        """   
+        # Storage of returns
+        R = 0
         returns = []
-
-        # Calculated disconted returns
+        # Calculate discounted returns
         for r in rewards[::-1]:
-            G = r + self.gamma * G
-            # Add returns to the start of the list ;)
-            returns.insert(0, G)
-        returns = torch.tensor(returns)
-        returns = (returns - returns.mean()) / (returns.std() + self.eps)
-
-        # Calculate loss
-        for log_prob, R in zip(self.saved_log_probs, returns):
-            p_loss.append(-log_prob * R)
-        p_loss = torch.cat(p_loss).sum()
+            R = r + self.gamma * R
+            returns.insert(0, R)
+        
+        # Calculate log probs from policy
+        returns_tensor = torch.Tensor(returns).unsqueeze(1) # Conver to tensor for backprop
+        s = torch.Tensor(observations)
+        a = torch.Tensor(actions).unsqueeze(1)
+        log_probs = -torch.log(self.policy(s).gather(1, a.long()))
+        # Compute policy loss
+        p_loss = (log_probs*returns_tensor).mean()
 
         # Optimize model
-        self.policy_optim.zero_grad()
         p_loss.backward()
         for param in self.policy.parameters():
             param.grad.data.clamp_(-1, 1)
         self.policy_optim.step()
 
-        # Delete saved_log_probs for next run
-        del self.saved_log_probs[:]
-        
-        return {"p_loss": p_loss}
+        return {"p_loss": p_loss.detach().item()}
