@@ -159,12 +159,12 @@ class DDPG(Agent):
         :return (sample from self.action_space): action the agent should perform
         """
         # Get the continous action value to perform in the env
-        obs = torch.from_numpy(obs.astype('float32')).unsqueeze(0)
+        obs = torch.from_numpy(obs.astype('float32'))
         mu = self.actor(obs)
         mu = mu.data
         # Exploration noise
         if explore:
-            mu += self.noise.sample()
+            mu += self.noise.sample()[0]
         # Clip the action according to env
         mu = mu.clamp(-2, 2)
         return mu

@@ -58,7 +58,7 @@ def play_episode(
         if train:
             replay_buffer.push(
                 np.array(obs, dtype=np.float32),
-                np.array([action], dtype=np.float32),
+                np.array(action, dtype=np.float32),
                 np.array(nobs, dtype=np.float32),
                 np.array([reward], dtype=np.float32),
                 np.array([done], dtype=np.float32),
