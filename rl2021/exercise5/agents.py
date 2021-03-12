@@ -113,9 +113,17 @@ class IndependentQLearningAgents(MultiAgent):
             received observations representing the current environmental state for each agent
         :return (List[int]): index of selected action for each agent
         """
-        actions = []
+        actions = [0]*self.num_agents
         ### PUT YOUR CODE HERE ###
-        raise NotImplementedError("Needed for Q5")
+        for agent in range(self.num_agents):
+            a_vals = [self.q_tables[agent][(obss[agent], act)] for act in range(self.n_acts[agent])]
+            max_val = max(a_vals)
+            max_acts = [idx for idx, a_val in enumerate(a_vals) if a_val == max_val]
+
+            if random.random() < self.epsilon:
+                actions[agent] = random.randint(0, self.n_acts[agent] - 1)
+            else:
+                actions[agent] = random.choice(max_acts)
         return actions
 
 
@@ -135,9 +143,14 @@ class IndependentQLearningAgents(MultiAgent):
         :param dones (List[bool]): flag indicating whether a terminal state has been reached for each agent
         :return (List[float]): updated Q-values for current observation-action pair of each agent
         """
-        updated_values = []
-        ### PUT YOUR CODE HERE ###
-        raise NotImplementedError("Needed for Q5")
+        updated_values = [0]*self.num_agents
+        for agent in range(self.num_agents):
+            max_q_action = max([self.q_tables[agent][(n_obss[agent], a)] for a in range(self.n_acts[agent])])
+            target_value = rewards[agent] + self.gamma * (1 - dones[agent]) * max_q_action
+            self.q_tables[agent][(obss[agent], actions[agent])] += self.learning_rate * (
+                target_value - self.q_tables[agent][(obss[agent], actions[agent])]
+            )
+            updated_values[agent] = self.q_tables[agent][(obss[agent], actions[agent])]
         return updated_values
 
 
@@ -152,8 +165,7 @@ class IndependentQLearningAgents(MultiAgent):
         :param timestep (int): current timestep at the beginning of the episode
         :param max_timestep (int): maximum timesteps that the training loop will run for
         """
-        ### PUT YOUR CODE HERE ###
-        raise NotImplementedError("Needed for Q5")
+        pass
 
 
 class JointActionLearning(MultiAgent):

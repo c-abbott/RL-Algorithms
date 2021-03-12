@@ -12,7 +12,7 @@ PEN_CONFIG = {
     "eps_max_steps": 10,
     "eval_freq": 100,
     "gamma": 0.99,
-    "lr": 0.05,
+    "lr": 0.5,
     "epsilon": 0.9,
     "goal_payoff": 10,
 }
@@ -20,17 +20,17 @@ PEN_CONFIG = {
 CLIMBING_CONFIG = {
     "env": "climbing",
     "env_args": (1, False),
-    "total_eps": 5000,
-    "eps_max_steps": 10,
+    "total_eps": 5000, # 5000
+    "eps_max_steps": 20,
     "eval_freq": 100,
     "gamma": 0.99,
-    "lr": 0.05,
-    "epsilon": 0.9,
+    "lr": 1.0,
+    "epsilon": 0.3,
     "goal_payoff": 11,
 }
 
 CONFIG = PEN_CONFIG
-# CONFIG = CLIMBING_CONFIG
+CONFIG = CLIMBING_CONFIG
 
 
 def iql_eval(env, config, q_tables, max_steps=10, eval_episodes=500, render=False, output=True):
