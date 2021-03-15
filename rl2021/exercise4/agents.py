@@ -5,7 +5,7 @@ from torch.optim import Adam
 from typing import Dict, Iterable
 import torch
 import torch.nn.functional as F
-from torch.distributions import Normal
+from torch.distributions import MultivariateNormal
 
 from rl2021.exercise3.agents import Agent
 from rl2021.exercise3.networks import FCNetwork, Tanh2
@@ -89,7 +89,7 @@ class DDPG(Agent):
         # ################################################### #
 
         ### PUT YOUR CODE HERE ###
-        self.noise = Normal(torch.zeros(ACTION_SIZE), 0.1*torch.eye(ACTION_SIZE))
+        self.noise = MultivariateNormal(torch.zeros(ACTION_SIZE), 0.01*torch.eye(ACTION_SIZE))
 
         # ############################### #
         # WRITE ANY AGENT PARAMETERS HERE #
