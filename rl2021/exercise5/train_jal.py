@@ -22,15 +22,15 @@ CLIMBING_CONFIG = {
     "env_args": (1, False),
     "total_eps": 5000,
     "eps_max_steps": 10,
-    "eval_freq": 100,
+    "eval_freq": 50,
     "gamma": 0.99,
-    "lr": 0.05,
-    "epsilon": 0.9,
-    "goal_payoff": 11,
+    "lr": 0.6,
+    "epsilon": 0.05,
+    "goal_payoff": 7,
 }
 
-CONFIG = PEN_CONFIG
-# CONFIG = CLIMBING_CONFIG
+#CONFIG = PEN_CONFIG
+CONFIG = CLIMBING_CONFIG
 
 
 def jql_eval(env, config, q_tables, models, c_obss, max_steps=10, eval_episodes=500, render=False, output=True):

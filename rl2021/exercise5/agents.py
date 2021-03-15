@@ -283,12 +283,13 @@ class JointActionLearning(MultiAgent):
     def schedule_hyperparameters(self, timestep: int, max_timestep: int):
         """Updates the hyperparameters
 
-        **YOU MUST IMPLEMENT THIS FUNCTION FOR Q5**
-
         This function is called before every episode and allows you to schedule your
         hyperparameters.
 
         :param timestep (int): current timestep at the beginning of the episode
         :param max_timestep (int): maximum timesteps that the training loop will run for
         """
+        # self.epsilon = 0.5 - (min(0.5, timestep / (0.1*max_timestep)))*0.95
+        # if timestep/max_timestep > 0.01:
+        #     self.epsilon = 0 
         pass
