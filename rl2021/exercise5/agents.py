@@ -202,15 +202,14 @@ class JointActionLearning(MultiAgent):
         # count observations - count for each agent
         self.c_obss = [defaultdict(lambda: 0) for _ in range(self.num_agents)]
 
-    def get_exp_val(self, state: int, agent_idx: int, action: int):
+    def get_ev(self, agent_idx: int, state: int, action: int):
         # Get joint actions of all other agents
         other_actions = deepcopy(self.n_acts) 
         del other_actions[agent_idx]
         # Enumerate all possible other agent actions 
-        # For our case this will be [(1,), (2,), (3,)] since we have 1 other agent
+        # For our case this will be [(0,), (1,), (2,)] since we have 1 other agent
         # and this agent can take 3 possible actions 
-        other_action_combs = list(product(*[range(1, a+1) for a in other_actions]))
-
+        other_action_combs = list(product(*[range(a) for a in other_actions]))
         ev = 0
         for other_comb in other_action_combs:
             # Grab one possible permutation of other agent actions
@@ -224,6 +223,12 @@ class JointActionLearning(MultiAgent):
             ev += Q * sa_pair_counts / s_counts if s_counts > 0 else 0 # Prevent 0 div errors
         return ev 
 
+    def get_max_ev(self, agent_idx: int, state: int):
+        max_ev = 0 
+        for action in range(self.n_acts[agent_idx]):
+            ev = self.get_ev(agent_idx, state, action)
+            max_ev = max(max_ev, ev)
+        return max_ev
 
     def act(self, obss: List[np.ndarray]) -> List[int]:
         """Implement the epsilon-greedy action selection here
@@ -236,14 +241,13 @@ class JointActionLearning(MultiAgent):
         for agent in range(self.num_agents): 
             # Exploring (e-greedy update)
             if random.random() < self.epsilon:
-                joint_action[agent] = random.randint(0, self.n_acts[agent])
+                joint_action[agent] = random.randint(0, self.n_acts[agent]-1)
             # Greedy update
             else:
                 evs = []
                 for action in range(self.n_acts[agent]):
-                    evs.append(self.get_exp_val(obss[agent], agent, action))
-                max_evs = [idx for idx, ev in enumerate(evs) if ev == max(evs)]
-                best_action = random.choice(max_evs)
+                    evs.append(self.get_ev(agent, obss[agent], action))
+                best_action = random.choice([idx for idx, ev in enumerate(evs) if ev == max(evs)])
                 joint_action[agent] = best_action
         return joint_action
 
@@ -252,7 +256,6 @@ class JointActionLearning(MultiAgent):
     ) -> List[float]:
         """Updates the Q-tables and models based on agents' experience
 
-        **YOU MUST IMPLEMENT THIS FUNCTION FOR Q5**
 
         :param obss (List[np.ndarray] of float with dim (observation size)):
             received observations representing the current environmental state for each agent
@@ -263,9 +266,17 @@ class JointActionLearning(MultiAgent):
         :param dones (List[bool]): flag indicating whether a terminal state has been reached for each agent
         :return (List[float]): updated Q-values for current observation-action pair of each agent
         """
-        updated_values = []
-        ### PUT YOUR CODE HERE ###
-        raise NotImplementedError("Needed for Q5")
+
+        updated_values = [0]*self.num_agents
+        for agent in range(self.num_agents):
+            self.c_obss[agent][obss[agent]] += 1
+            self.models[agent][obss[agent]][tuple(actions[:agent] + actions[agent+1:])] += 1
+            max_ev = self.get_max_ev(agent, obss[agent])
+            target_value = rewards[agent] + self.gamma * (1 - dones[agent]) * max_ev
+            self.q_tables[agent][(obss[agent], tuple(actions))] += self.learning_rate * (
+                target_value - self.q_tables[agent][(obss[agent], tuple(actions))]
+            )
+            updated_values[agent] = self.q_tables[agent][(obss[agent], tuple(actions))]
         return updated_values
 
 
@@ -280,5 +291,4 @@ class JointActionLearning(MultiAgent):
         :param timestep (int): current timestep at the beginning of the episode
         :param max_timestep (int): maximum timesteps that the training loop will run for
         """
-        ### PUT YOUR CODE HERE ###
-        # raise NotImplementedError("Needed for Q5")
+        pass
