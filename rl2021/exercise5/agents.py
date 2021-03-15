@@ -170,8 +170,6 @@ class IndependentQLearningAgents(MultiAgent):
 
 class JointActionLearning(MultiAgent):
     """Agents using the Joint Action Learning algorithm with Opponent Modelling
-
-    ** YOU NEED TO IMPLEMENT THE FUNCTIONS IN THIS CLASS **
     """
 
     def __init__(self, learning_rate: float =0.5, epsilon: float =1.0, **kwargs):
@@ -230,18 +228,24 @@ class JointActionLearning(MultiAgent):
     def act(self, obss: List[np.ndarray]) -> List[int]:
         """Implement the epsilon-greedy action selection here
 
-        **YOU MUST IMPLEMENT THIS FUNCTION FOR Q5**
-
         :param obss (List[np.ndarray] of float with dim (observation size)):
             received observations representing the current environmental state for each agent
         :return (List[int]): index of selected action for each agent
         """
-        self.get_exp_val(1, 1,  2)
-        joint_action = []
-        ### PUT YOUR CODE HERE ###
-        raise NotImplementedError("Needed for Q5")
+        joint_action = [0]*self.num_agents
+        for agent in range(self.num_agents): 
+            # Exploring (e-greedy update)
+            if random.random() < self.epsilon:
+                joint_action[agent] = random.randint(0, self.n_acts[agent])
+            # Greedy update
+            else:
+                evs = []
+                for action in range(self.n_acts[agent]):
+                    evs.append(self.get_exp_val(obss[agent], agent, action))
+                max_evs = [idx for idx, ev in enumerate(evs) if ev == max(evs)]
+                best_action = random.choice(max_evs)
+                joint_action[agent] = best_action
         return joint_action
-
 
     def learn(
         self, obss: List[np.ndarray], actions: List[int], rewards: List[float], n_obss: List[np.ndarray], dones: List[bool]
