@@ -3,7 +3,8 @@ from collections import defaultdict
 import random
 import sys
 from typing import List, Dict, DefaultDict
-
+from itertools import product
+from copy import deepcopy
 import numpy as np
 from gym.spaces import Space, Box
 from gym.spaces.utils import flatdim
@@ -114,7 +115,6 @@ class IndependentQLearningAgents(MultiAgent):
         :return (List[int]): index of selected action for each agent
         """
         actions = [0]*self.num_agents
-        ### PUT YOUR CODE HERE ###
         for agent in range(self.num_agents):
             a_vals = [self.q_tables[agent][(obss[agent], act)] for act in range(self.n_acts[agent])]
             max_val = max(a_vals)
@@ -204,6 +204,28 @@ class JointActionLearning(MultiAgent):
         # count observations - count for each agent
         self.c_obss = [defaultdict(lambda: 0) for _ in range(self.num_agents)]
 
+    def get_exp_val(self, state: int, agent_idx: int, action: int):
+        # Get joint actions of all other agents
+        other_actions = deepcopy(self.n_acts) 
+        del other_actions[agent_idx]
+        # Enumerate all possible other agent actions 
+        # For our case this will be [(1,), (2,), (3,)] since we have 1 other agent
+        # and this agent can take 3 possible actions 
+        other_action_combs = list(product(*[range(1, a+1) for a in other_actions]))
+
+        ev = 0
+        for other_comb in other_action_combs:
+            # Grab one possible permutation of other agent actions
+            pairs = list(deepcopy(other_comb))
+            # Insert agent of interest's action into list
+            pairs.insert(agent_idx, action)
+            # Calculate EV components
+            sa_pair_counts = self.models[agent_idx][state][other_comb]
+            s_counts = self.c_obss[agent_idx][state]
+            Q = self.q_tables[agent_idx][(state, tuple(pairs))] # Tuples are hashable, lists are not
+            ev += Q * sa_pair_counts / s_counts if s_counts > 0 else 0 # Prevent 0 div errors
+        return ev 
+
 
     def act(self, obss: List[np.ndarray]) -> List[int]:
         """Implement the epsilon-greedy action selection here
@@ -214,6 +236,7 @@ class JointActionLearning(MultiAgent):
             received observations representing the current environmental state for each agent
         :return (List[int]): index of selected action for each agent
         """
+        self.get_exp_val(1, 1,  2)
         joint_action = []
         ### PUT YOUR CODE HERE ###
         raise NotImplementedError("Needed for Q5")
@@ -254,4 +277,4 @@ class JointActionLearning(MultiAgent):
         :param max_timestep (int): maximum timesteps that the training loop will run for
         """
         ### PUT YOUR CODE HERE ###
-        raise NotImplementedError("Needed for Q5")
+        # raise NotImplementedError("Needed for Q5")
