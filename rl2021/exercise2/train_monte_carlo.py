@@ -5,8 +5,6 @@ from rl2021.exercise2.utils import evaluate
 
 REAL_MAX_EPISODE_STEPS = 100 # CUT OF AN EPISODE THAT RUNS LONGER THAN THAT. DO NOT CHANGE
 
-### TUNE HYPERPARAMETERS HERE ###
-# TODO: optimize hyperparameter settings
 CONFIG = {
     "env": "Taxi-v3",
     "total_eps": 100000,
