@@ -18,8 +18,6 @@ import random
 class Agent(ABC):
     """Base class for Deep RL Exercise 3 Agents
 
-    **DO NOT CHANGE THIS CLASS**
-
     :attr action_space (gym.Space): action space of used environment
     :attr observation_space (gym.Space): observation space of used environment
     :attr saveables (Dict[str, torch.nn.Module]):
@@ -87,9 +85,6 @@ class Agent(ABC):
 
 class DQN(Agent):
     """The DQN agent for exercise 3
-
-    **YOU NEED TO IMPLEMENT FUNCTIONS IN THIS CLASS**
-
     :attr critics_net (FCNetwork): fully connected DQN to compute Q-value estimates
     :attr critics_target (FCNetwork): fully connected DQN target network
     :attr critics_optim (torch.optim): PyTorch optimiser for DQN critics_net
@@ -170,7 +165,8 @@ class DQN(Agent):
         :param timestep (int): current timestep at the beginning of the episode
         :param max_timestep (int): maximum timesteps that the training loop will run for
         """
-        self.epsilon = 1.0-(min(1.0, timestep/(0.35 *max_timestep)))*0.95
+        # Linear decay scheduler
+        self.epsilon = 1.0 - (min(1.0, timestep/(0.3 * max_timestep))) * 0.97
 
     def act(self, obs: np.ndarray, explore: bool):
         """Returns an action (should be called at every timestep)
@@ -214,6 +210,7 @@ class DQN(Agent):
         self.critics_optim.zero_grad()
         q_loss.backward()
         for param in self.critics_net.parameters():
+            # Gradient clipping to prevent divergence
             param.grad.data.clamp_(-1, 1)
         self.critics_optim.step()
 
@@ -221,7 +218,7 @@ class DQN(Agent):
         self.update_counter += 1
         if self.update_counter % self.target_update_freq == 0:
             self.critics_target.hard_update(self.critics_net)
-        return {"q_loss": q_loss}
+        return {"q_loss": q_loss.detach()}
 
 class Reinforce(Agent):
     """ The Reinforce Agent for Ex 3
@@ -244,8 +241,6 @@ class Reinforce(Agent):
         **kwargs,
     ):
         """
-        **YOU MUST IMPLEMENT THIS FUNCTION FOR Q3**
-
         :param action_space (gym.Space): environment's action space
         :param observation_space (gym.Space): environment's observation space
         :param learning_rate (float): learning rate for DQN optimisation

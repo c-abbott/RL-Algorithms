@@ -14,7 +14,7 @@ from rl2021.exercise3.train_reinforce import train as reinforce_train
 plt.style.use("seaborn-darkgrid")
 plt.rcParams.update({"font.size": 15})
 
-TRAINING_RUNS = 3
+TRAINING_RUNS = 5
 
 CARTPOLE_CONFIGS = [
     (DQN_CARTPOLE_CONFIG, "DQN", dqn_train),
@@ -26,7 +26,7 @@ LUNARLANDER_CONFIGS = [
 ]
 
 CONFIGS = CARTPOLE_CONFIGS
-# CONFIGS = LUNARLANDER_CONFIGS
+#CONFIGS = LUNARLANDER_CONFIGS
 
 def prepare_config(config, alg_name, train_f):
     """
@@ -106,7 +106,7 @@ if __name__ == "__main__":
             x_min = 0
             x_max = config["max_timesteps"]
             if env_name.lower() == "lunarlander":
-                plt.hlines(y=190, xmin=x_min, xmax=x_max, colors='k', linestyles='dotted', label="LunarLander threshold")
+                plt.hlines(y=195, xmin=x_min, xmax=x_max, colors='k', linestyles='dotted', label="LunarLander threshold")
                 axes.set_ylim([-200,200])
             elif env_name.lower() == "cartpole":
                 plt.hlines(y=195, xmin=x_min, xmax=x_max, colors='k', linestyles='dotted', label="Cartpole threshold")
