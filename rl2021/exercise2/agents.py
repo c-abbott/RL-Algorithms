@@ -9,10 +9,8 @@ from gym.spaces.utils import flatdim
 
 class Agent(ABC):
     """Base class for Q-Learning agent
-
-    **ONLY CHANGE THE BODY OF THE act() FUNCTION**
-
     """
+
     def __init__(
         self,
         action_space: Space,
@@ -52,13 +50,15 @@ class Agent(ABC):
             received observation representing the current environmental state
         :return (int): index of selected action
         """
+        # Calc all action values
         a_vals = [self.q_table[(obs, a)] for a in range(self.n_acts)]
+        # Find all actions associated with this maximum value
         max_val = max(a_vals)
         max_acts = [idx for idx, a_val in enumerate(a_vals) if a_val == max_val]
 
-        if random.random() < self.epsilon:
+        if random.random() < self.epsilon:  # e-Greedy
             return random.randint(0, self.n_acts - 1)
-        else:
+        else: # Greedy
             return random.choice(max_acts)
 
     @abstractmethod
@@ -108,11 +108,12 @@ class QLearningAgent(Agent):
         :param done (bool): flag indicating whether a terminal state has been reached
         :return (float): updated Q-value for current observation-action pair
         """
+        # Find max q
         max_q_action = max([self.q_table[(n_obs, a)] for a in range(self.n_acts)])
+        # Calculate target
         target_value = reward + self.gamma * (1 - done) * max_q_action
-        self.q_table[(obs, action)] += self.alpha * (
-            target_value - self.q_table[(obs, action)]
-        )
+        # Bellman update
+        self.q_table[(obs, action)] += self.alpha * ( target_value - self.q_table[(obs, action)])
         return self.q_table[(obs, action)]
 
     def schedule_hyperparameters(self, timestep: int, max_timestep: int):
@@ -169,7 +170,7 @@ class MonteCarloAgent(Agent):
                 self.sa_counts[(obs, a)] = 1 if (obs, a) not in self.sa_counts.keys() else self.sa_counts[(obs, a)] + 1
                 # Online averaging of returns
                 updated_values[(obs, a)] = self.q_table[(obs, a)] + (G - self.q_table[(obs, a)]) / (self.sa_counts[(obs, a)]) 
-        
+        # Update Q-table
         self.q_table.update(updated_values)
         return updated_values
 
@@ -182,5 +183,7 @@ class MonteCarloAgent(Agent):
         :param timestep (int): current timestep at the beginning of the episode
         :param max_timestep (int): maximum timesteps that the training loop will run for
         """
+        # Linear decay scheduler
         self.epsilon = 0.7 - (min(0.7, timestep / (0.5*max_timestep)))*0.95
-        self.epsilon = min(self.epsilon, 1 - min(1, timestep/(0.95*max_timestep)))
+        # Kills exploration at when 75% of timesteps are complete
+        self.epsilon = min(self.epsilon, 1 - min(1, timestep/(0.75*max_timestep)))
