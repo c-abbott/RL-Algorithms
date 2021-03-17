@@ -271,7 +271,6 @@ class Reinforce(Agent):
         # ############################### #
         # WRITE ANY AGENT PARAMETERS HERE #
         # ############################### #
-        self.saved_log_probs = []
 
         # ###############################################
         self.saveables.update(
