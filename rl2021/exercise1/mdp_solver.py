@@ -189,23 +189,22 @@ class PolicyIteration(MDPSolver):
             A 1D NumPy array that encodes the computed value function
             It is indexed as (State) where V[State] is the value of state 'State'
         """
+        # Initialize all values as zero
         V = np.zeros(self.state_dim)
         delta = float('inf')
         while delta > self.theta:
             delta = 0
             for state in range(self.state_dim):
-                v = V[state]
+                v = V[state] # Store old state value
                 probs = policy[state] @ self.mdp.P[state, :, :]    # 1 x state_dim
                 rewards = policy[state] @ self.mdp.R[state, :, :]  # 1 x state_dim
-                V[state] = np.sum(probs*(rewards + self.gamma*V))
+                V[state] = np.sum(probs*(rewards + self.gamma*V)) # Update new state value
                 delta = max(delta, np.abs(v-V[state]))
         return np.array(V)
 
     def _policy_improvement(self) -> Tuple[np.ndarray, np.ndarray]:
         """Computes one policy improvement iteration
-
-        **YOU MUST IMPLEMENT THIS FUNCTION FOR Q1**
-
+        
         Useful Variables (As with Value Iteration):
         1. `self.mpd` -- Gives access to the MDP.
         2. `self.mdp.R` -- 3D NumPy array with the rewards for each transition.
