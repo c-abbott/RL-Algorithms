@@ -17,9 +17,6 @@ def obs_to_tuple(obs):
 
 class MultiAgent(ABC):
     """Base class for multi-agent reinforcement learning
-
-    **DO NOT CHANGE THIS BASE CLASS**
-
     """
 
     def __init__(
@@ -79,8 +76,6 @@ class MultiAgent(ABC):
 
 class IndependentQLearningAgents(MultiAgent):
     """Agent using the Independent Q-Learning algorithm
-
-    ** YOU NEED TO IMPLEMENT THE FUNCTIONS IN THIS CLASS **
     """
 
     def __init__(self, learning_rate: float =0.5, epsilon: float =1.0, **kwargs):
@@ -114,15 +109,18 @@ class IndependentQLearningAgents(MultiAgent):
             received observations representing the current environmental state for each agent
         :return (List[int]): index of selected action for each agent
         """
+        # Storing actions of every agent
         actions = [0]*self.num_agents
         for agent in range(self.num_agents):
+            # Finding best action for each agent
             a_vals = [self.q_tables[agent][(obss[agent], act)] for act in range(self.n_acts[agent])]
             max_val = max(a_vals)
             max_acts = [idx for idx, a_val in enumerate(a_vals) if a_val == max_val]
 
+            # Exploration (e-greedy)
             if random.random() < self.epsilon:
                 actions[agent] = random.randint(0, self.n_acts[agent] - 1)
-            else:
+            else: # Greedy update
                 actions[agent] = random.choice(max_acts)
         return actions
 
@@ -143,13 +141,18 @@ class IndependentQLearningAgents(MultiAgent):
         :param dones (List[bool]): flag indicating whether a terminal state has been reached for each agent
         :return (List[float]): updated Q-values for current observation-action pair of each agent
         """
+        # Storing updated q vals for each agent
         updated_values = [0]*self.num_agents
         for agent in range(self.num_agents):
+            # Finding max q value for each possible action
             max_q_action = max([self.q_tables[agent][(n_obss[agent], a)] for a in range(self.n_acts[agent])])
+            # Computing target
             target_value = rewards[agent] + self.gamma * (1 - dones[agent]) * max_q_action
+            # Updating agent q table via Bellman equation
             self.q_tables[agent][(obss[agent], actions[agent])] += self.learning_rate * (
                 target_value - self.q_tables[agent][(obss[agent], actions[agent])]
             )
+            # Storing updated values
             updated_values[agent] = self.q_tables[agent][(obss[agent], actions[agent])]
         return updated_values
 
@@ -224,7 +227,11 @@ class JointActionLearning(MultiAgent):
         return ev 
 
     def get_max_ev(self, agent_idx: int, state: int):
-        max_ev = 0 
+        """
+            For a given agent, find the maximum expected 
+            value considering all possible actions.
+        """
+        max_ev = float('-Inf') 
         for action in range(self.n_acts[agent_idx]):
             ev = self.get_ev(agent_idx, state, action)
             max_ev = max(max_ev, ev)
@@ -245,8 +252,10 @@ class JointActionLearning(MultiAgent):
             # Greedy update
             else:
                 evs = []
+                # Get all expected values for each possible action
                 for action in range(self.n_acts[agent]):
                     evs.append(self.get_ev(agent, obss[agent], action))
+                # Find action associated with max expected value
                 best_action = random.choice([idx for idx, ev in enumerate(evs) if ev == max(evs)])
                 joint_action[agent] = best_action
         return joint_action
@@ -266,11 +275,14 @@ class JointActionLearning(MultiAgent):
         :param dones (List[bool]): flag indicating whether a terminal state has been reached for each agent
         :return (List[float]): updated Q-values for current observation-action pair of each agent
         """
-
         updated_values = [0]*self.num_agents
         for agent in range(self.num_agents):
+            # Update visitation counter
             self.c_obss[agent][obss[agent]] += 1
+            # Update model (s)
             self.models[agent][obss[agent]][tuple(actions[:agent] + actions[agent+1:])] += 1
+
+            # Update Q values via Bellman with modified ev targets
             max_ev = self.get_max_ev(agent, obss[agent])
             target_value = rewards[agent] + self.gamma * (1 - dones[agent]) * max_ev
             self.q_tables[agent][(obss[agent], tuple(actions))] += self.learning_rate * (
@@ -289,7 +301,4 @@ class JointActionLearning(MultiAgent):
         :param timestep (int): current timestep at the beginning of the episode
         :param max_timestep (int): maximum timesteps that the training loop will run for
         """
-        # self.epsilon = 0.5 - (min(0.5, timestep / (0.1*max_timestep)))*0.95
-        # if timestep/max_timestep > 0.01:
-        #     self.epsilon = 0 
         pass
