@@ -88,7 +88,9 @@ class DDPG(Agent):
         # DEFINE A GAUSSIAN THAT WILL BE USED FOR EXPLORATION #
         # ################################################### #
 
-        ### PUT YOUR CODE HERE ###
+        # NOTE: MultivariateNormal's second argument is the covariance matrix whilst
+        # Normal uses the standard deviation. This is why the constant has become
+        # 0.01 = 0.1*0.1
         self.noise = MultivariateNormal(torch.zeros(ACTION_SIZE), 0.01*torch.eye(ACTION_SIZE))
 
         # ############################### #
@@ -144,7 +146,6 @@ class DDPG(Agent):
         :param timestep (int): current timestep at the beginning of the episode
         :param max_timestep (int): maximum timesteps that the training loop will run for
         """
-        ### PUT YOUR CODE HERE ###
         pass
 
     def act(self, obs: np.ndarray, explore: bool):

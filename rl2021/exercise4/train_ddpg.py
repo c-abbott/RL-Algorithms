@@ -13,7 +13,7 @@ RENDER = False
 ### TUNE HYPERPARAMETERS HERE ###
 PENDULUM_CONFIG = {
     "env": "Pendulum-v0",
-    "target_return": -180.0,
+    "target_return": -150.0,
     "episode_length": 1000,
     "max_timesteps": 400000,
     "max_time": 120 * 60,
