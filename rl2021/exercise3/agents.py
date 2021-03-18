@@ -105,6 +105,7 @@ class DQN(Agent):
         target_update_freq: int,
         batch_size: int,
         gamma: float,
+        use_lunar_scheduler: bool,
         **kwargs,
     ):
         """The constructor of the DQN agent class
@@ -143,6 +144,7 @@ class DQN(Agent):
         self.target_update_freq = target_update_freq
         self.batch_size = batch_size
         self.gamma = gamma
+        self.use_lunar_scheduler = use_lunar_scheduler
 
         # ######################################### #
 
@@ -157,16 +159,19 @@ class DQN(Agent):
     def schedule_hyperparameters(self, timestep: int, max_timestep: int):
         """Updates the hyperparameters
 
-        **YOU MUST IMPLEMENT THIS FUNCTION FOR Q3**
-
         This function is called before every episode and allows you to schedule your
         hyperparameters.
 
         :param timestep (int): current timestep at the beginning of the episode
         :param max_timestep (int): maximum timesteps that the training loop will run for
         """
-        # Linear decay scheduler
-        self.epsilon = 1.0 - (min(1.0, timestep/(0.3 * max_timestep))) * 0.97
+        if self.use_lunar_scheduler:
+            self.epsilon = 1.0
+            if timestep > 0.10*max_timestep:
+                self.epsilon = 1.0 - (min(1.0, timestep/(0.25 * max_timestep))) * 0.99995
+        else:
+            # Linear decay scheduler
+            self.epsilon = 1.0 - (min(1.0, timestep/(0.3 * max_timestep))) * 0.97
 
     def act(self, obs: np.ndarray, explore: bool):
         """Returns an action (should be called at every timestep)
@@ -181,10 +186,10 @@ class DQN(Agent):
         """
         # Exploring (e-greedy update)
         if explore and random.random() < self.epsilon:
-            return random.randrange(self.action_space.n)
+            return np.random.randint(self.action_space.n)
         # Greedy update
         else:
-            actions = self.critics_net.forward(torch.from_numpy(obs).float())
+            actions = self.critics_net(torch.from_numpy(obs).float())
             a = torch.argmax(actions)
             return a.item()
 
@@ -209,9 +214,6 @@ class DQN(Agent):
         # Optimize the model
         self.critics_optim.zero_grad()
         q_loss.backward()
-        for param in self.critics_net.parameters():
-            # Gradient clipping to prevent divergence
-            param.grad.data.clamp_(-1, 1)
         self.critics_optim.step()
 
         # Periodically change target weights

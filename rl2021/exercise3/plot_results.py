@@ -14,7 +14,7 @@ from rl2021.exercise3.train_reinforce import train as reinforce_train
 plt.style.use("seaborn-darkgrid")
 plt.rcParams.update({"font.size": 15})
 
-TRAINING_RUNS = 5
+TRAINING_RUNS = 3
 
 CARTPOLE_CONFIGS = [
     (DQN_CARTPOLE_CONFIG, "DQN", dqn_train),
@@ -26,7 +26,7 @@ LUNARLANDER_CONFIGS = [
 ]
 
 CONFIGS = CARTPOLE_CONFIGS
-#CONFIGS = LUNARLANDER_CONFIGS
+CONFIGS = LUNARLANDER_CONFIGS
 
 def prepare_config(config, alg_name, train_f):
     """
