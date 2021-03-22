@@ -14,7 +14,7 @@ PEN_CONFIG = {
     "gamma": 0.99,
     "lr": 0.005,
     "epsilon": 0.9,
-    "goal_payoff": 10,
+    "goal_payoff": 10
 }
 
 CLIMBING_CONFIG = {
@@ -26,7 +26,7 @@ CLIMBING_CONFIG = {
     "gamma": 0.99,
     "lr": 0.6,
     "epsilon": 0.05,
-    "goal_payoff": 7,
+    "goal_payoff": 7
 }
 
 CONFIG = PEN_CONFIG

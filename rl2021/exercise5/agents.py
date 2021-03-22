@@ -3,7 +3,7 @@ from collections import defaultdict
 import random
 import sys
 from typing import List, Dict, DefaultDict
-from itertools import product
+from itertools import product, chain
 from copy import deepcopy
 import numpy as np
 from gym.spaces import Space, Box
@@ -44,7 +44,6 @@ class MultiAgent(ABC):
         self.action_spaces = action_spaces
         self.observation_spaces = observation_spaces
         self.n_acts = [flatdim(action_space) for action_space in action_spaces]
-
         self.gamma: float = gamma
 
     @abstractmethod
@@ -102,9 +101,6 @@ class IndependentQLearningAgents(MultiAgent):
 
     def act(self, obss: List[np.ndarray]) -> List[int]:
         """Implement the epsilon-greedy action selection here
-
-        **YOU MUST IMPLEMENT THIS FUNCTION FOR Q5**
-
         :param obss (List[np.ndarray] of float with dim (observation size)):
             received observations representing the current environmental state for each agent
         :return (List[int]): index of selected action for each agent
@@ -210,13 +206,14 @@ class JointActionLearning(MultiAgent):
         other_actions = deepcopy(self.n_acts) 
         del other_actions[agent_idx]
         # Enumerate all possible other agent actions 
-        # For our case this will be [(0,), (1,), (2,)] since we have 1 other agent
+        # For our case this will be [0, 1, 2] since we have 1 other agent
         # and this agent can take 3 possible actions 
-        other_action_combs = list(product(*[range(a) for a in other_actions]))
+        other_action_combs = list(*[range(a) for a in other_actions])
+    
         ev = 0
         for other_comb in other_action_combs:
             # Grab one possible permutation of other agent actions
-            pairs = list(deepcopy(other_comb))
+            pairs = [deepcopy(other_comb)]
             # Insert agent of interest's action into list
             pairs.insert(agent_idx, action)
             # Calculate EV components
@@ -276,11 +273,13 @@ class JointActionLearning(MultiAgent):
         :return (List[float]): updated Q-values for current observation-action pair of each agent
         """
         updated_values = [0]*self.num_agents
+    
         for agent in range(self.num_agents):
             # Update visitation counter
             self.c_obss[agent][obss[agent]] += 1
             # Update model (s)
-            self.models[agent][obss[agent]][tuple(actions[:agent] + actions[agent+1:])] += 1
+            other_actions = actions[:agent] + actions[agent+1:]
+            self.models[agent][obss[agent]][other_actions[0]] += 1
 
             # Update Q values via Bellman with modified ev targets
             max_ev = self.get_max_ev(agent, obss[agent])
